@@ -26,7 +26,7 @@ export function MainNav() {
 
   const navItems = [
     { title: "Strona główna", href: "/", icon: Home },
-    { title: "Odkrywaj", href: "/discover", icon: Compass },
+    { title: "Odkrywaj", href: "/browse", icon: Compass },
     { title: "Moja lista", href: "/my-list", icon: Play },
     { title: "Społeczność", href: "/community", icon: Users },
     { title: "Osiągnięcia", href: "/achievements", icon: Trophy },

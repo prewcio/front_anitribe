@@ -181,7 +181,8 @@ export async function getAnimeByFilters(variables: {
           hasNextPage
           perPage
         }
-        media(sort: $sort, genre_in: $genres, tag_in: $tags, seasonYear: $year, format_in: $format, status: $status, type: ANIME) {
+        media(sort: $sort, genre_in: $genres, tag_in: $tags, seasonYear: $year, 
+          format_in: $format, status: $status, type: ANIME, isAdult: false) {
           id
           title {
             romaji
@@ -207,13 +208,15 @@ export async function getAnimeByFilters(variables: {
   const otherTags = variables.genres?.filter(g => !GENRE_TAGS.has(g)) || []
 
   try {
-    const vars = {
-      ...variables,
+    const vars: Record<string, any> = {
+      page: parseInt(variables.page, 10) || 1,
+      sort: variables.sort || "TRENDING_DESC",
       ...(genreTags.length > 0 && { genres: genreTags }),
-      ...(otherTags.length > 0 && { tags: otherTags })
+      ...(otherTags.length > 0 && { tags: otherTags }),
+      ...(variables.year && { year: variables.year }),
+      ...(variables.format && variables.format.length > 0 && { format: variables.format }),
+      ...(variables.status && { status: variables.status })
     }
-    
-    delete vars.genres
     
     const data = await fetchAniList(query, vars)
     return data.Page
