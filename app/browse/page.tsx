@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, Suspense, ErrorBoundary } from "react"
+import { useState, useCallback, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { getAnimeByFilters, type SortOption } from "@/lib/api/anilist"
 import AnimeGrid from "@/components/AnimeGrid"
@@ -15,9 +15,7 @@ import type { FiltersState } from "./BrowseFilters"
 export default function BrowsePage() {
   return (
     <Suspense fallback={<LoadingGrid />}>
-      <ErrorBoundary fallback={<ErrorMessage />}>
-        <BrowseContent />
-      </ErrorBoundary>
+      <BrowseContent />
     </Suspense>
   )
 }

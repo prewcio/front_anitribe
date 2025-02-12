@@ -7,6 +7,7 @@ import LoadingSpinner from "@/components/LoadingSpinner"
 import AnimeGrid from "@/components/AnimeGrid"
 import { Badge } from "@/components/ui/badge"
 import { Play, Star, MessageSquare } from "lucide-react" // Import missing icons
+import LoadingGrid from "@/components/LoadingGrid"
 
 async function ProfileContent() {
   const profile = await getUserProfile()

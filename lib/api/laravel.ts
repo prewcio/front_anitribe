@@ -133,6 +133,9 @@ export async function getUserProfile() {
       {
         id: 1,
         title: "Attack on Titan",
+        coverImage: {
+          large: "/placeholder.svg"
+        },
         image: "/placeholder.svg?height=150&width=100",
         progress: 15,
         totalEpisodes: 25,

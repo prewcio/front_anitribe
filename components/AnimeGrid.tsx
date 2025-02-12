@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,8 +12,8 @@ interface AnimeGridItem {
     english: string
     native: string
   }
-  coverImage: {
-    large: string
+  coverImage?: {
+    large?: string
   }
   averageScore: number
   episodes: number
@@ -44,7 +46,7 @@ export default function AnimeGrid({ items }: AnimeGridProps) {
           <Card className="flex flex-col h-full overflow-hidden hover:shadow-lg transition-shadow duration-300">
             <CardContent className="p-0 relative">
               <img
-                src={item.coverImage.large || "/placeholder.svg"}
+                src={item.coverImage?.large || "/placeholder.svg"}
                 alt={item.title.romaji}
                 className="w-full h-64 object-cover"
                 loading="lazy"
