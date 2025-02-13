@@ -11,6 +11,9 @@ import { InfiniteScroll } from "@/components/InfiniteScroll"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import type { FiltersState } from "./BrowseFilters"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { translateTagToPolish } from "@/lib/utils/tagTranslation"
 
 export default function BrowsePage() {
   return (
@@ -35,7 +38,7 @@ function BrowseContent() {
       sourceMaterial: searchParams.get("sourceMaterial") || "any",
       year: [
         Number(searchParams.get("yearFrom")) || 1990,
-        Number(searchParams.get("yearTo")) || new Date().getFullYear(),
+        Number(searchParams.get("yearTo")) || new Date().getFullYear() + 1,
       ],
       episodes: [Number(searchParams.get("episodesFrom")) || 1, Number(searchParams.get("episodesTo")) || 150],
       duration: [Number(searchParams.get("durationFrom")) || 1, Number(searchParams.get("durationTo")) || 180],
@@ -52,7 +55,8 @@ function BrowseContent() {
         page: page.toString(),
         sort,
         genres: filters.genres,
-        year: filters.year[1],
+        excludedGenres: filters.excludedGenres,
+        year: filters.year[0] === 1990 && filters.year[1] === new Date().getFullYear() + 1 ? undefined : filters.year[1],
         // Add more filter parameters as needed
       })
       return { media, pageInfo }
@@ -100,10 +104,30 @@ function BrowseContent() {
   const handleFiltersApply = useCallback(
     (newFilters: FiltersState) => {
       setCurrentFilters(newFilters)
-      loadAnime(1, currentSort, newFilters)
+      setCurrentPage(1)
+      setAnime([])
+      setIsInitialLoading(true)
     },
-    [loadAnime, currentSort],
+    []
   )
+
+  const handleFilterRemove = useCallback((type: string, value?: string) => {
+    const newFilters = { ...currentFilters }
+    
+    switch(type) {
+      case 'genre':
+        newFilters.genres = newFilters.genres.filter(g => g !== value)
+        break
+      case 'excludedGenre':
+        newFilters.excludedGenres = newFilters.excludedGenres.filter(g => g !== value)
+        break
+      case 'year':
+        newFilters.year = [1990, new Date().getFullYear() + 1]
+        break
+    }
+    
+    handleFiltersApply(newFilters)
+  }, [currentFilters, handleFiltersApply])
 
   useEffect(() => {
     loadAnime(1, currentSort, currentFilters)
@@ -116,15 +140,61 @@ function BrowseContent() {
           <BrowseFilters currentFilters={currentFilters} onFiltersApply={handleFiltersApply} />
         </aside>
         <main className="flex-1">
-          <div className="mb-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Browse Anime</h1>
-            <SortingOptions currentSort={currentSort} onSortChange={handleSortChange} />
+          <div className="mb-4 flex flex-col items-start gap-2">
+            <div className="w-full flex justify-between items-center">
+              <h1 className="text-2xl font-bold">Przeglądaj Anime</h1>
+              <Select value={currentSort} onValueChange={(value) => setCurrentSort(value as SortOption)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sortuj" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TRENDING_DESC">Popularne</SelectItem>
+                  <SelectItem value="POPULARITY_DESC">Najpopularniejsze</SelectItem>
+                  <SelectItem value="SCORE_DESC">Najwyżej oceniane</SelectItem>
+                  <SelectItem value="START_DATE_DESC">Najnowsze</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {currentFilters.genres.map((genre) => (
+                <Button
+                  key={genre}
+                  variant="outline"
+                  size="xs"
+                  onClick={() => handleFilterRemove('genre', genre)}
+                  className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
+                >
+                  {translateTagToPolish(genre)} ×
+                </Button>
+              ))}
+              {currentFilters.excludedGenres.map((genre) => (
+                <Button
+                  key={genre}
+                  variant="outline"
+                  size="xs"
+                  onClick={() => handleFilterRemove('excludedGenre', genre)}
+                  className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
+                >
+                  Wykluczono: {translateTagToPolish(genre)} ×
+                </Button>
+              ))}
+              {(currentFilters.year[0] !== 1990 || currentFilters.year[1] !== new Date().getFullYear() + 1) && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => handleFilterRemove('year')}
+                  className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
+                >
+                  Lata: {currentFilters.year[0]}-{currentFilters.year[1]} ×
+                </Button>
+              )}
+            </div>
           </div>
           {error ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertTitle>Błąd</AlertTitle>
+              <AlertDescription>{error || "Wystąpił nieznany błąd"}</AlertDescription>
             </Alert>
           ) : isInitialLoading ? (
             <LoadingGrid />

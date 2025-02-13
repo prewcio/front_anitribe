@@ -31,7 +31,7 @@ export default function BrowseFilters({
   const [filters, setFilters] = useState<FiltersState>({
     countryOfOrigin: (currentFilters.countryOfOrigin as string) || "any",
     sourceMaterial: (currentFilters.sourceMaterial as string) || "any",
-    year: [Number(currentFilters.yearFrom) || 1990, Number(currentFilters.yearTo) || currentYear],
+    year: [Number(currentFilters.yearFrom) || 1990, Number(currentFilters.yearTo) || currentYear + 1],
     episodes: [Number(currentFilters.episodesFrom) || 1, Number(currentFilters.episodesTo) || 150],
     duration: [Number(currentFilters.durationFrom) || 1, Number(currentFilters.durationTo) || 180],
     genres: Array.isArray(currentFilters.genres)
@@ -58,7 +58,7 @@ export default function BrowseFilters({
     if (filters.year[0] !== 1990) {
       queryParams.set("yearFrom", filters.year[0].toString())
     }
-    if (filters.year[1] !== currentYear) {
+    if (filters.year[1] !== currentYear + 1) {
       queryParams.set("yearTo", filters.year[1].toString())
     }
     if (filters.episodes[0] !== 1) {

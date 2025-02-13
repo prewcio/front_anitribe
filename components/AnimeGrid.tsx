@@ -41,7 +41,7 @@ export default function AnimeGrid({ items }: AnimeGridProps) {
           key={item.id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: (index % 20) * 0.1 }}
+          transition={{ duration: 0.3, delay: (index % 40) * 0.1 }}
         >
           <Card className="flex flex-col h-full overflow-hidden hover:shadow-lg transition-shadow duration-300">
             <CardContent className="p-0 relative">

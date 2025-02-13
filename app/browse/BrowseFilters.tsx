@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
@@ -26,6 +26,10 @@ interface BrowseFiltersProps {
 
 export default function BrowseFilters({ currentFilters, onFiltersApply }: BrowseFiltersProps) {
   const [filters, setFilters] = useState<FiltersState>(currentFilters)
+
+  useEffect(() => {
+    setFilters(currentFilters)
+  }, [currentFilters])
 
   const handleFilterChange = useCallback((key: keyof FiltersState, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
@@ -149,9 +153,26 @@ export default function BrowseFilters({ currentFilters, onFiltersApply }: Browse
         </AccordionItem>
       </Accordion>
 
-      <Button onClick={applyFilters} className="w-full">
-        Zastosuj filtry
-      </Button>
+      <div className="space-y-2">
+        <Button onClick={applyFilters} className="w-full">
+          Zastosuj filtry
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={() => onFiltersApply({
+            countryOfOrigin: "any",
+            sourceMaterial: "any",
+            year: [1990, new Date().getFullYear() + 1],
+            episodes: [1, 150],
+            duration: [1, 180],
+            genres: [],
+            excludedGenres: []
+          })}
+          className="w-full"
+        >
+          Resetuj filtry
+        </Button>
+      </div>
     </div>
   )
 }

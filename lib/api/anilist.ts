@@ -167,13 +167,14 @@ export async function getAnimeByFilters(variables: {
   page: string
   sort: SortOption
   genres?: string[]
+  excludedGenres?: string[]
   year?: number
   format?: string[]
   status?: string
 }) {
   const query = `
-    query ($page: Int, $sort: [MediaSort], $genres: [String], $tags: [String], $year: Int, $format: [MediaFormat], $status: MediaStatus) {
-      Page(page: $page, perPage: 20) {
+    query ($page: Int, $sort: [MediaSort], $genres: [String], $tags: [String], $genre_not_in: [String], $tag_not_in: [String], $year: Int, $format: [MediaFormat], $status: MediaStatus) {
+      Page(page: $page, perPage: 40) {
         pageInfo {
           total
           currentPage
@@ -181,7 +182,7 @@ export async function getAnimeByFilters(variables: {
           hasNextPage
           perPage
         }
-        media(sort: $sort, genre_in: $genres, tag_in: $tags, seasonYear: $year, 
+        media(sort: $sort, genre_in: $genres, tag_in: $tags, genre_not_in: $genre_not_in, tag_not_in: $tag_not_in, seasonYear: $year, 
           format_in: $format, status: $status, type: ANIME, isAdult: false) {
           id
           title {
@@ -206,6 +207,8 @@ export async function getAnimeByFilters(variables: {
   // Split genres into official genres and regular tags
   const genreTags = variables.genres?.filter(g => GENRE_TAGS.has(g)) || []
   const otherTags = variables.genres?.filter(g => !GENRE_TAGS.has(g)) || []
+  const excludedGenreTags = variables.excludedGenres?.filter(g => GENRE_TAGS.has(g)) || []
+  const excludedOtherTags = variables.excludedGenres?.filter(g => !GENRE_TAGS.has(g)) || []
 
   try {
     const vars: Record<string, any> = {
@@ -213,7 +216,9 @@ export async function getAnimeByFilters(variables: {
       sort: variables.sort || "TRENDING_DESC",
       ...(genreTags.length > 0 && { genres: genreTags }),
       ...(otherTags.length > 0 && { tags: otherTags }),
-      ...(variables.year && { year: variables.year }),
+      ...(excludedGenreTags.length > 0 && { genre_not_in: excludedGenreTags }),
+      ...(excludedOtherTags.length > 0 && { tag_not_in: excludedOtherTags }),
+      ...(variables.year && variables.year <= new Date().getFullYear() + 1 && { year: variables.year }),
       ...(variables.format && variables.format.length > 0 && { format: variables.format }),
       ...(variables.status && { status: variables.status })
     }

@@ -14,8 +14,8 @@ export function HeroSection() {
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-8 space-y-4">
-        <h1 className="text-4xl md:text-6xl font-bold">Solo Leveling</h1>
-        <p className="text-lg md:text-xl text-text-secondary max-w-2xl">
+        <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold">Solo Leveling</h1>
+        <p className="text-sm md:text-lg lg:text-xl text-text-secondary max-w-2xl">
           Po pojawieniu się tajemniczej bramy na świecie, łowcy muszą stawić czoła śmiertelnym potworom, aby chronić
           ludzkość. Sung Jin-Woo, najsłabszy łowca na świecie, wyrusza w podróż, aby stać się najsilniejszym ze
           wszystkich.
