@@ -4,48 +4,55 @@ import { useState } from "react"
 import { Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-interface AnimeRatingProps {
-  initialRating?: number
-  onRate: (rating: number) => Promise<void>
+export interface AnimeRatingProps {
+  initialRating: number
+  animeId: number
 }
 
-export function AnimeRating({ initialRating = 0, onRate }: AnimeRatingProps) {
+export function AnimeRating({ initialRating, animeId }: AnimeRatingProps) {
   const [rating, setRating] = useState(initialRating)
   const [hoveredRating, setHoveredRating] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleRate = async (newRating: number) => {
-    setIsSubmitting(true)
+    setRating(newRating)
     try {
-      await onRate(newRating)
-      setRating(newRating)
+      const response = await fetch(`/api/anime/${animeId}/rate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rating: newRating }),
+      })
+      if (!response.ok) {
+        throw new Error("Failed to rate anime")
+      }
     } catch (error) {
-      console.error("Failed to submit rating:", error)
-    } finally {
-      setIsSubmitting(false)
+      console.error("Error rating anime:", error)
+      setRating(rating) // Revert on error
     }
   }
 
   return (
-    <div className="flex items-center space-x-2">
-      {[1, 2, 3, 4, 5].map((star) => (
+    <div className="flex items-center justify-center gap-1">
+      {[1, 2, 3, 4, 5].map((value) => (
         <Button
-          key={star}
+          key={value}
           variant="ghost"
-          size="sm"
-          disabled={isSubmitting}
-          onClick={() => handleRate(star)}
-          onMouseEnter={() => setHoveredRating(star)}
+          size="icon"
+          className="w-8 h-8"
+          onMouseEnter={() => setHoveredRating(value)}
           onMouseLeave={() => setHoveredRating(0)}
+          onClick={() => handleRate(value)}
         >
           <Star
-            className={`h-6 w-6 ${
-              (hoveredRating || rating) >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+            className={`w-5 h-5 ${
+              value <= (hoveredRating || rating)
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-muted-foreground"
             }`}
           />
         </Button>
       ))}
-      <span className="text-sm font-medium">{rating > 0 ? `Twoja ocena: ${rating}/5` : "Oceń anime"}</span>
     </div>
   )
 }

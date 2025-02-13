@@ -10,7 +10,8 @@ import { TagFilter } from "@/components/TagFilter"
 export interface FiltersState {
   countryOfOrigin: string
   sourceMaterial: string
-  year: [number, number]
+  season?: string
+  year?: number
   episodes: [number, number]
   duration: [number, number]
   genres: string[]
@@ -75,29 +76,45 @@ export default function BrowseFilters({ currentFilters, onFiltersApply }: Browse
             </SelectContent>
           </Select>
         </div>
+
+        <div>
+          <label className="text-sm font-medium">Sezon</label>
+          <Select value={filters.season} onValueChange={(value) => handleFilterChange("season", value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Dowolny" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Dowolny</SelectItem>
+              <SelectItem value="WINTER">Zima</SelectItem>
+              <SelectItem value="SPRING">Wiosna</SelectItem>
+              <SelectItem value="SUMMER">Lato</SelectItem>
+              <SelectItem value="FALL">Jesień</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Rok</label>
+          <Select 
+            value={filters.year?.toString()} 
+            onValueChange={(value) => handleFilterChange("year", value ? parseInt(value) : undefined)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Dowolny" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Dowolny</SelectItem>
+              {Array.from({ length: 10 }, (_, i) => currentYear - i).map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Accordion type="multiple" className="w-full">
-        <AccordionItem value="year">
-          <AccordionTrigger>Rok produkcji</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-4 px-2">
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{filters.year[0]}</span>
-                <span>{filters.year[1]}</span>
-              </div>
-              <Slider
-                value={filters.year}
-                min={1990}
-                max={currentYear}
-                step={1}
-                onValueChange={(value) => handleFilterChange("year", value)}
-                className="mt-1"
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
         <AccordionItem value="episodes">
           <AccordionTrigger>Liczba odcinków</AccordionTrigger>
           <AccordionContent>
@@ -162,7 +179,8 @@ export default function BrowseFilters({ currentFilters, onFiltersApply }: Browse
           onClick={() => onFiltersApply({
             countryOfOrigin: "any",
             sourceMaterial: "any",
-            year: [1990, new Date().getFullYear() + 1],
+            season: undefined,
+            year: undefined,
             episodes: [1, 150],
             duration: [1, 180],
             genres: [],

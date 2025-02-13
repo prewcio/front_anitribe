@@ -31,15 +31,15 @@ function BrowseContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentSort, setCurrentSort] = useState<SortOption>("TRENDING_DESC")
+  const [currentSort, setCurrentSort] = useState<SortOption>(() => {
+    return searchParams.get("sort") as SortOption || "TRENDING_DESC"
+  })
   const [currentFilters, setCurrentFilters] = useState<FiltersState>(() => {
     return {
       countryOfOrigin: searchParams.get("countryOfOrigin") || "any",
       sourceMaterial: searchParams.get("sourceMaterial") || "any",
-      year: [
-        Number(searchParams.get("yearFrom")) || 1990,
-        Number(searchParams.get("yearTo")) || new Date().getFullYear() + 1,
-      ],
+      season: searchParams.get("season") || undefined,
+      year: searchParams.get("year") ? Number(searchParams.get("year")) : undefined,
       episodes: [Number(searchParams.get("episodesFrom")) || 1, Number(searchParams.get("episodesTo")) || 150],
       duration: [Number(searchParams.get("durationFrom")) || 1, Number(searchParams.get("durationTo")) || 180],
       genres: searchParams.getAll("genres"),
@@ -56,8 +56,8 @@ function BrowseContent() {
         sort,
         genres: filters.genres,
         excludedGenres: filters.excludedGenres,
-        year: filters.year[0] === 1990 && filters.year[1] === new Date().getFullYear() + 1 ? undefined : filters.year[1],
-        // Add more filter parameters as needed
+        year: filters.year,
+        season: filters.season,
       })
       return { media, pageInfo }
     } catch (error) {
@@ -93,56 +93,34 @@ function BrowseContent() {
     }
   }, [isLoading, pageInfo, currentPage, currentSort, currentFilters, fetchAnime])
 
-  const handleSortChange = useCallback(
-    (newSort: SortOption) => {
-      setCurrentSort(newSort)
-      loadAnime(1, newSort, currentFilters)
-    },
-    [loadAnime, currentFilters],
-  )
-
-  const handleFiltersApply = useCallback(
-    (newFilters: FiltersState) => {
-      setCurrentFilters(newFilters)
-      setCurrentPage(1)
-      setAnime([])
-      setIsInitialLoading(true)
-    },
-    []
-  )
-
-  const handleFilterRemove = useCallback((type: string, value?: string) => {
-    const newFilters = { ...currentFilters }
-    
-    switch(type) {
-      case 'genre':
-        newFilters.genres = newFilters.genres.filter(g => g !== value)
-        break
-      case 'excludedGenre':
-        newFilters.excludedGenres = newFilters.excludedGenres.filter(g => g !== value)
-        break
-      case 'year':
-        newFilters.year = [1990, new Date().getFullYear() + 1]
-        break
-    }
-    
-    handleFiltersApply(newFilters)
-  }, [currentFilters, handleFiltersApply])
-
   useEffect(() => {
     loadAnime(1, currentSort, currentFilters)
-  }, [loadAnime, currentSort, currentFilters]) // Only run on mount
+  }, [loadAnime, currentSort, currentFilters])
+
+  const formatSeason = (season: string) => {
+    const seasons: Record<string, string> = {
+      WINTER: "Zima",
+      SPRING: "Wiosna",
+      SUMMER: "Lato",
+      FALL: "Jesień"
+    }
+    return seasons[season] || season
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row gap-6">
-        <aside className="md:w-64 shrink-0">
-          <BrowseFilters currentFilters={currentFilters} onFiltersApply={handleFiltersApply} />
+        <aside className="w-full md:w-64 lg:w-80">
+          <BrowseFilters currentFilters={currentFilters} onFiltersApply={setCurrentFilters} />
         </aside>
         <main className="flex-1">
           <div className="mb-4 flex flex-col items-start gap-2">
             <div className="w-full flex justify-between items-center">
-              <h1 className="text-2xl font-bold">Przeglądaj Anime</h1>
+              <h1 className="text-2xl font-bold">
+                {currentFilters.season && currentFilters.year
+                  ? `Sezon ${formatSeason(currentFilters.season)} ${currentFilters.year}`
+                  : "Przeglądaj Anime"}
+              </h1>
               <Select value={currentSort} onValueChange={(value) => setCurrentSort(value as SortOption)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sortuj" />
@@ -160,8 +138,12 @@ function BrowseContent() {
                 <Button
                   key={genre}
                   variant="outline"
-                  size="xs"
-                  onClick={() => handleFilterRemove('genre', genre)}
+                  size="sm"
+                  onClick={() => {
+                    const newFilters = { ...currentFilters }
+                    newFilters.genres = newFilters.genres.filter(g => g !== genre)
+                    setCurrentFilters(newFilters)
+                  }}
                   className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
                 >
                   {translateTagToPolish(genre)} ×
@@ -171,21 +153,30 @@ function BrowseContent() {
                 <Button
                   key={genre}
                   variant="outline"
-                  size="xs"
-                  onClick={() => handleFilterRemove('excludedGenre', genre)}
+                  size="sm"
+                  onClick={() => {
+                    const newFilters = { ...currentFilters }
+                    newFilters.excludedGenres = newFilters.excludedGenres.filter(g => g !== genre)
+                    setCurrentFilters(newFilters)
+                  }}
                   className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
                 >
                   Wykluczono: {translateTagToPolish(genre)} ×
                 </Button>
               ))}
-              {(currentFilters.year[0] !== 1990 || currentFilters.year[1] !== new Date().getFullYear() + 1) && (
+              {currentFilters.season && currentFilters.year && (
                 <Button
                   variant="outline"
-                  size="xs"
-                  onClick={() => handleFilterRemove('year')}
+                  size="sm"
+                  onClick={() => {
+                    const newFilters = { ...currentFilters }
+                    newFilters.season = undefined
+                    newFilters.year = undefined
+                    setCurrentFilters(newFilters)
+                  }}
                   className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
                 >
-                  Lata: {currentFilters.year[0]}-{currentFilters.year[1]} ×
+                  Sezon: {formatSeason(currentFilters.season)} {currentFilters.year} ×
                 </Button>
               )}
             </div>
@@ -200,14 +191,19 @@ function BrowseContent() {
             <LoadingGrid />
           ) : (
             <>
-              <AnimeGrid items={anime} />
+              {anime.length > 0 ? (
+                <AnimeGrid items={anime} />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Nie znaleziono żadnych anime spełniających kryteria.</p>
+                </div>
+              )}
               {isLoading && <LoadingGrid />}
               {pageInfo?.hasNextPage && anime.length > 0 && (
                 <InfiniteScroll 
                   onLoadMore={loadMore} 
                   hasMore={pageInfo.hasNextPage}
                   rootMargin="10px"
-                  triggerImmediately
                 />
               )}
             </>

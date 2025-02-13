@@ -15,6 +15,7 @@ import { translateTagToPolish, getTagExplanation, getTagColor, translateTagToEng
 
 interface InteractiveTagProps {
   tag: string
+  description?: string
 }
 
 export function InteractiveTag({ tag }: InteractiveTagProps) {

@@ -76,6 +76,9 @@ module.exports = {
       fontFamily: {
         pixel: ['"Press Start 2P"', "monospace"],
       },
+      screens: {
+        'custom-lg': '1210px',
+      },
       typography: {
         DEFAULT: {
           css: {

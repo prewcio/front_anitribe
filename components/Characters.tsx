@@ -1,75 +1,86 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useRef } from "react"
+import Image from "next/image"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import { ChevronLeft, ChevronRight, User } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-interface CharacterData {
-  id: number
+interface Character {
   node: {
     id: number
     name: {
       full: string
-      native: string
     }
     image: {
-      medium: string
+      large: string
     }
   }
   role: string
 }
 
 interface CharactersProps {
-  characters: CharacterData[]
+  characters: Character[]
 }
 
-export default function Characters({ characters = [] }: CharactersProps) {
-  const [scrollPosition, setScrollPosition] = useState(0)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+const ROLE_TRANSLATIONS: Record<string, string> = {
+  MAIN: "Główna",
+  SUPPORTING: "Drugoplanowa"
+}
+
+export default function Characters({ characters }: CharactersProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (direction: "left" | "right") => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = direction === "left" ? -200 : 200
-      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" })
-      setScrollPosition(scrollContainerRef.current.scrollLeft + scrollAmount)
+    if (scrollRef.current) {
+      const scrollAmount = 200
+      scrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth"
+      })
     }
   }
 
   return (
     <div className="relative">
-      <h3 className="text-xl font-semibold mb-4">Postacie</h3>
-      <div className="flex items-center">
+      <h2 className="text-2xl font-bold mb-4">Postacie</h2>
+      <div className="relative group">
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="absolute left-0 z-10"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => scroll("left")}
-          disabled={scrollPosition <= 0}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div
-          ref={scrollContainerRef}
-          className="flex overflow-x-auto space-x-4 scrollbar-hide"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          ref={scrollRef}
+          className="flex overflow-x-auto scrollbar-hide gap-3 py-2"
         >
           {characters.map((character) => (
-            <Link href={`/character/${character.node.id}`} key={character.node.id}>
-              <Card className="w-32 flex-shrink-0 overflow-hidden bg-card hover:bg-accent transition-colors">
-                <div className="aspect-[3/4] relative">
-                  <img
-                    src={character.node.image?.medium || "/placeholder.svg"}
+            <Link
+              key={character.node.id}
+              href={`/character/${character.node.id}`}
+              className="flex-shrink-0 w-[160px]"
+            >
+              <Card className="overflow-hidden">
+                <div className="relative aspect-[3/4]">
+                  <Image
+                    src={character.node.image.large}
                     alt={character.node.name.full}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 </div>
                 <div className="p-2">
-                  <p className="font-medium text-xs truncate">{character.node.name.full}</p>
-                  <p className="text-xs text-muted-foreground truncate">{character.node.name.native}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {character.role === "MAIN" ? "Główna" : "Drugoplanowa"}
+                  <h3 className="font-medium text-sm line-clamp-1">
+                    {character.node.name.full}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {ROLE_TRANSLATIONS[character.role] || character.role}
                   </p>
                 </div>
               </Card>
@@ -77,14 +88,10 @@ export default function Characters({ characters = [] }: CharactersProps) {
           ))}
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="absolute right-0 z-10"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => scroll("right")}
-          disabled={
-            scrollContainerRef.current &&
-            scrollPosition >= scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth
-          }
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

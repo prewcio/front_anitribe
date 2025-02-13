@@ -6,9 +6,9 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Star } from "lucide-react"
-import { getSeasonalAnime, getCurrentSeason } from "@/lib/api/anilist"
+import { getPopularAnime } from "@/lib/api/anilist"
 
-interface SeasonalAnime {
+interface PopularAnime {
   id: number
   title: {
     romaji: string
@@ -21,30 +21,20 @@ interface SeasonalAnime {
   averageScore: number
   format: string
   episodes: number
-  nextAiringEpisode?: {
-    episode: number
-    timeUntilAiring: number
-  }
 }
 
-interface SeasonData {
-  media: SeasonalAnime[]
-  season: string
-  year: number
-}
-
-export function SeasonalAnime() {
+export function PopularNow() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [seasonData, setSeasonData] = useState<SeasonData | null>(null)
+  const [popularAnime, setPopularAnime] = useState<PopularAnime[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const data = await getSeasonalAnime()
-        setSeasonData(data)
+        const data = await getPopularAnime()
+        setPopularAnime(data)
       } catch (error) {
-        console.error("Error fetching seasonal anime:", error)
+        console.error("Error fetching popular anime:", error)
       } finally {
         setIsLoading(false)
       }
@@ -82,31 +72,11 @@ export function SeasonalAnime() {
     return types[format] || format
   }
 
-  const formatTimeUntilAiring = (seconds: number) => {
-    const days = Math.floor(seconds / (24 * 3600))
-    const hours = Math.floor((seconds % (24 * 3600)) / 3600)
-    
-    if (days > 0) {
-      return `${days} dni ${hours} godz`
-    }
-    return `${hours} godz`
-  }
-
-  const formatSeason = (season: string) => {
-    const seasons: Record<string, string> = {
-      WINTER: "Zima",
-      SPRING: "Wiosna",
-      SUMMER: "Lato",
-      FALL: "Jesień"
-    }
-    return seasons[season] || season
-  }
-
-  if (isLoading || !seasonData) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Ładowanie...</h2>
+          <h2 className="text-2xl font-bold">Popularne teraz</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -126,11 +96,9 @@ export function SeasonalAnime() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          Sezon {formatSeason(seasonData.season)} {seasonData.year}
-        </h2>
+        <h2 className="text-2xl font-bold">Popularne teraz</h2>
         <Button variant="ghost" asChild>
-          <Link href={`/browse?season=${seasonData.season}&year=${seasonData.year}`}>
+          <Link href="/browse?sort=TRENDING_DESC">
             Zobacz więcej
           </Link>
         </Button>
@@ -140,7 +108,7 @@ export function SeasonalAnime() {
           ref={scrollContainerRef}
           className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
         >
-          {seasonData.media.map((anime) => (
+          {popularAnime.map((anime) => (
             <Link
               key={anime.id}
               href={`/anime/${anime.id}`}
@@ -168,12 +136,6 @@ export function SeasonalAnime() {
                   <p className="text-sm text-muted-foreground">
                     {formatType(anime.format)} • {anime.episodes} odcinków
                   </p>
-                  {anime.nextAiringEpisode && (
-                    <p className="text-sm text-muted-foreground">
-                      Odcinek {anime.nextAiringEpisode.episode} za{" "}
-                      {formatTimeUntilAiring(anime.nextAiringEpisode.timeUntilAiring)}
-                    </p>
-                  )}
                 </div>
               </Card>
             </Link>
@@ -198,6 +160,4 @@ export function SeasonalAnime() {
       </div>
     </div>
   )
-}
-
-
+} 

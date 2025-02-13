@@ -15,26 +15,104 @@ import { NextEpisodeBox } from "./NextEpisodeBox"
 import Characters from "@/components/Characters"
 import SimilarAnime from "@/components/SimilarAnime"
 import { formatDescription } from "@/lib/utils/formatDescription"
-import { VideoPlayer } from "@/components/VideoPlayer/VideoPlayer"
 import { redirect } from "next/navigation"
 import { getEpisodeData } from "@/lib/api/laravel" // Import getEpisodeData
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Play, Plus, Star, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
+import RelatedAnimeSection from "@/components/RelatedAnimeSection"
+
+interface RelatedAnime {
+  id: number
+  title: string
+  coverImage: string
+  format: string
+  status: string
+  relationType: string
+}
+
+interface AnimeRatingProps {
+  initialRating: number
+  animeId: number
+}
+
+interface AnimeRelation {
+  id: number
+  relationType: string
+  node: {
+    id: number
+    title: {
+      userPreferred: string
+    }
+    coverImage: {
+      large: string
+    }
+    format: string
+    status: string
+  }
+}
 
 interface Props {
   params: { id: string }
-  searchParams: { watch?: string }
+  searchParams: { 
+    watch?: string
+    tab?: string 
+  }
+}
+
+// Add translation mappings
+const STATUS_TRANSLATIONS: Record<string, string> = {
+  FINISHED: "Zakończone",
+  RELEASING: "W trakcie emisji",
+  NOT_YET_RELEASED: "Niewyemitowane",
+  CANCELLED: "Anulowane",
+  HIATUS: "Wstrzymane"
+}
+
+const FORMAT_TRANSLATIONS: Record<string, string> = {
+  TV: "Serial TV",
+  MOVIE: "Film",
+  OVA: "OVA",
+  ONA: "ONA",
+  SPECIAL: "Odcinek specjalny",
+  MUSIC: "Teledysk",
+  TV_SHORT: "Krótki serial TV"
+}
+
+const TYPE_TRANSLATIONS: Record<string, string> = {
+  ANIME: "Anime",
+  MANGA: "Manga",
+  LIGHT_NOVEL: "Light Novel",
+  VISUAL_NOVEL: "Visual Novel",
+  ONE_SHOT: "One Shot",
+  NOVEL: "Powieść"
+}
+
+// Add season translations
+const SEASON_TRANSLATIONS: Record<string, string> = {
+  FALL: "JESIEŃ",
+  SPRING: "WIOSNA",
+  WINTER: "ZIMA",
+  SUMMER: "LATO"
+}
+
+const STATUS_TRANSLATIONS_PROGRESS: Record<string, string> = {
+  Watching: "Oglądam",
+  Completed: "Ukończone",
+  Planned: "Zaplanowane",
+  Dropped: "Porzucone",
+  OnHold: "Wstrzymane"
 }
 
 async function AnimeDetails({ params, searchParams }: Props) {
   const id = Number.parseInt(params.id, 10)
-  const watchEpisodeId = searchParams.watch ? Number.parseInt(searchParams.watch, 10) : null
+  const watchEpisodeId = searchParams.watch ? Number.parseInt(searchParams.watch as string, 10) : null
 
-  // If watch parameter is present, redirect to the watch page
-  if (watchEpisodeId) {
-    redirect(`/anime/${id}/watch?episode=${watchEpisodeId}`)
-  }
+  // First fetch anime details
+  const anime = await getAnimeDetails(id)
 
-  const [anime, userProgress, comments] = await Promise.all([
-    getAnimeDetails(id),
+  // Then fetch the rest in parallel
+  const [userProgress, comments, formattedDescription] = await Promise.all([
     Promise.resolve({
       currentEpisode: 5,
       totalEpisodes: 12,
@@ -42,15 +120,45 @@ async function AnimeDetails({ params, searchParams }: Props) {
       rating: 4,
     }),
     getAnimeComments(id),
+    formatDescription(anime.description),
   ])
 
+  const relatedAnime = anime.relations?.edges?.filter((edge: AnimeRelation) => 
+    edge.node.format && ["TV", "MOVIE", "OVA", "ONA", "SPECIAL", "TV_SHORT"].includes(edge.node.format)
+  ) || []
+
   let watchEpisode = null
-  if (watchEpisodeId) {
+  if (watchEpisodeId !== null) {
     watchEpisode = await getEpisodeData(id, watchEpisodeId)
   }
 
   const formatDate = (date: { year: number; month: number; day: number }) => {
-    return new Date(date.year, date.month - 1, date.day).toLocaleDateString("pl-PL")
+    if (!date.year || !date.month || !date.day) return "Nieznane"
+    try {
+      return new Date(date.year, date.month - 1, date.day).toLocaleDateString("pl-PL", {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    } catch (error) {
+      return "Nieznane"
+    }
+  }
+
+  const getRelationLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      PREQUEL: "Poprzednia Seria",
+      SEQUEL: "Następna Seria",
+      SPIN_OFF: "Spin-off",
+      SIDE_STORY: "Historia Poboczna",
+      PARENT: "Seria Główna",
+      ADAPTATION: "Adaptacja",
+      ALTERNATIVE: "Alternatywna Historia",
+      CHARACTER: "Historia Postaci",
+      SUMMARY: "Podsumowanie",
+      OTHER: "Powiązane"
+    }
+    return labels[type] || type
   }
 
   return (
@@ -83,93 +191,90 @@ async function AnimeDetails({ params, searchParams }: Props) {
               </div>
             )}
             <div className="mt-4 space-y-4">
-              <AnimeRating
-                initialRating={userProgress?.rating || 0}
-                animeId={id}
-              />
-              {userProgress && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Twój postęp</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Progress
-                      value={(userProgress.currentEpisode / userProgress.totalEpisodes) * 100}
-                      className="mb-2"
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Odcinek {userProgress.currentEpisode} z {userProgress.totalEpisodes}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Status: {userProgress.status}</p>
-                  </CardContent>
-                </Card>
-              )}
-              <div className="flex gap-4">
+              <div className="flex gap-2">
                 <Button asChild className="flex-1">
-                  <Link href={`/anime/${id}?watch=${userProgress ? userProgress.currentEpisode + 1 : 1}`}>
+                  <Link href={`/anime/${id}/watch?episode=${userProgress ? userProgress.currentEpisode + 1 : 1}`}>
+                    <Play className="w-4 h-4 mr-2" />
                     {userProgress ? "Kontynuuj" : "Rozpocznij oglądanie"}
                   </Link>
                 </Button>
-                {userProgress && (
-                  <Button variant="outline" className="flex-1">
-                    Edytuj postęp
-                  </Button>
-                )}
+                <Button variant="outline" size="icon">
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
+              
+              <AnimeRating 
+                initialRating={0} 
+                animeId={anime.id} 
+              />
+              
+              {userProgress && (
+                <div className="w-full bg-[#1e1b2c] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-purple-400 font-medium">
+                        Twój postęp
+                      </span>
+                      <span className="text-lg font-bold text-white mt-0.5">
+                        {userProgress.currentEpisode} z {userProgress.totalEpisodes}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-purple-400 font-medium">
+                          Status
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-purple-400 hover:text-purple-300">
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <span className="text-sm text-white mt-0.5">
+                        {STATUS_TRANSLATIONS_PROGRESS[userProgress.status] || userProgress.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-purple-500/10 h-1.5">
+                    <div 
+                      className="h-full bg-purple-500 transition-all duration-300"
+                      style={{ width: `${(userProgress.currentEpisode / userProgress.totalEpisodes) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <Button variant="outline" className="w-full">
+                <Star className="w-4 h-4 mr-2" />
+                Dodaj do ulubionych
+              </Button>
             </div>
           </div>
           <div className="md:w-2/3 space-y-6">
-            {watchEpisode && (
-              <div className="space-y-4">
-                <VideoPlayer
-                  src={watchEpisode.videoUrl}
-                  poster={watchEpisode.thumbnail}
-                  sections={watchEpisode.sections.map((section) => ({
-                    name: section.type,
-                    start: section.start,
-                    end: section.end,
-                    color: section.type === "OPENING" ? "#ef4444" : "#3b82f6",
-                  }))}
-                  animeId={id}
-                  episodeId={watchEpisodeId}
-                />
-                <h2 className="text-2xl font-bold">
-                  Odcinek {watchEpisode.number}: {watchEpisode.title}
-                </h2>
-                <p>{watchEpisode.description}</p>
-                <div className="flex justify-between">
-                  <Button variant="outline" disabled={watchEpisodeId === 1} asChild>
-                    <Link href={`/anime/${id}?watch=${watchEpisodeId - 1}`}>Poprzedni odcinek</Link>
-                  </Button>
-                  <Button variant="outline" disabled={watchEpisodeId === anime.episodes} asChild>
-                    <Link href={`/anime/${id}?watch=${watchEpisodeId + 1}`}>Następny odcinek</Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-            {watchEpisode === null && (
-              <>
                 <div>
                   <h1 className="text-3xl font-bold">{anime.title.english || anime.title.romaji}</h1>
                   <p className="text-lg text-muted-foreground">{anime.title.native}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {anime.genres.map((genre) => (
+                  {anime.genres?.map((genre: string) => (
                     <InteractiveTag key={genre} tag={genre} />
                   ))}
-                  {anime.tags &&
-                    anime.tags.map((tag: { name: string }) => <InteractiveTag key={tag.name} tag={tag.name} />)}
+                  {anime.tags?.map((tag: { name: string; description: string }) => (
+                    <InteractiveTag 
+                      key={tag.name} 
+                      tag={tag.name}
+                      description={tag.description}
+                    />
+                  ))}
                 </div>
                 <article
                   className="prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg prose-a:text-primary hover:prose-a:opacity-80 max-w-none"
                   dangerouslySetInnerHTML={{
-                    __html: formatDescription(anime.description),
+                    __html: formattedDescription,
                   }}
                 />
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="font-semibold">Format:</p>
-                    <p>{anime.format}</p>
+                    <p>{FORMAT_TRANSLATIONS[anime.format] || anime.format}</p>
                   </div>
                   <div>
                     <p className="font-semibold">Odcinki:</p>
@@ -177,11 +282,11 @@ async function AnimeDetails({ params, searchParams }: Props) {
                   </div>
                   <div>
                     <p className="font-semibold">Status:</p>
-                    <p>{anime.status}</p>
+                    <p>{STATUS_TRANSLATIONS[anime.status] || anime.status}</p>
                   </div>
                   <div>
                     <p className="font-semibold">Czas trwania:</p>
-                    <p>{anime.duration} min</p>
+                    <p>{anime.duration ? `${anime.duration} min` : "? min"}</p>
                   </div>
                   <div>
                     <p className="font-semibold">Data rozpoczęcia:</p>
@@ -191,24 +296,36 @@ async function AnimeDetails({ params, searchParams }: Props) {
                     <p className="font-semibold">Data zakończenia:</p>
                     <p>{anime.endDate.year ? formatDate(anime.endDate) : "W trakcie emisji"}</p>
                   </div>
+                  <div>
+                    <p className="font-semibold">Sezon:</p>
+                    <p>{anime.season ? `${SEASON_TRANSLATIONS[anime.season]} ${anime.seasonYear}` : "Nieznane"}</p>
+                  </div>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Studia</h3>
                   <div className="flex flex-wrap gap-2">
-                    {anime.studios.nodes.map((studio: { name: string }) => (
-                      <StudioButton key={studio.name} studio={studio.name} />
+                    {anime.studios.nodes.map((studio: { name: string, id: number }) => (
+                      <StudioButton key={studio.name} studio={studio.name} id={studio.id} />
                     ))}
                   </div>
                 </div>
-              </>
-            )}
           </div>
         </div>
         <div className="mt-8 space-y-8">
-          <Characters characters={anime.characters?.edges || []} />
-          <SimilarAnime
-            recommendations={anime.recommendations?.nodes?.map((node: any) => node.mediaRecommendation) || []}
-          />
+          {/* Related Anime Section */}
+          {relatedAnime.length > 0 && (
+            <RelatedAnimeSection relatedAnime={relatedAnime} />
+          )}
+          
+          {anime.characters?.edges?.length > 0 && (
+            <Characters characters={anime.characters.edges} />
+          )}
+
+          {anime.recommendations?.nodes?.length > 0 && (
+            <SimilarAnime
+              recommendations={anime.recommendations.nodes.map((node: any) => node.mediaRecommendation)}
+            />
+          )}
         </div>
         <div className="mt-8">
           <Comments comments={comments} animeId={id} />
@@ -218,7 +335,7 @@ async function AnimeDetails({ params, searchParams }: Props) {
   )
 }
 
-export default function AnimePage({ params, searchParams }: Props) {
+export default async function AnimePage({ params, searchParams }: Props) {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <AnimeDetails params={params} searchParams={searchParams} />

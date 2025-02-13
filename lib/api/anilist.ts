@@ -118,6 +118,7 @@ export async function getAnimeDetails(id: number) {
         }
         studios {
           nodes {
+            id
             name
           }
         }
@@ -127,12 +128,23 @@ export async function getAnimeDetails(id: number) {
               id
               name {
                 full
+                native
               }
               image {
-                medium
+                large
               }
+              description
             }
             role
+            voiceActors(language: JAPANESE) {
+              id
+              name {
+                full
+              }
+              image {
+                large
+              }
+            }
           }
         }
         recommendations {
@@ -142,10 +154,36 @@ export async function getAnimeDetails(id: number) {
               title {
                 romaji
                 english
+                native
               }
               coverImage {
-                medium
+                large
               }
+              format
+              status
+              episodes
+              averageScore
+            }
+          }
+        }
+        relations {
+          edges {
+            id
+            relationType
+            node {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              format
+              status
+              coverImage {
+                large
+              }
+              episodes
+              averageScore
             }
           }
         }
@@ -169,11 +207,12 @@ export async function getAnimeByFilters(variables: {
   genres?: string[]
   excludedGenres?: string[]
   year?: number
+  season?: string
   format?: string[]
   status?: string
 }) {
   const query = `
-    query ($page: Int, $sort: [MediaSort], $genres: [String], $tags: [String], $genre_not_in: [String], $tag_not_in: [String], $year: Int, $format: [MediaFormat], $status: MediaStatus) {
+    query ($page: Int, $sort: [MediaSort], $genres: [String], $tags: [String], $genre_not_in: [String], $tag_not_in: [String], $year: Int, $season: MediaSeason, $format: [MediaFormat], $status: MediaStatus) {
       Page(page: $page, perPage: 40) {
         pageInfo {
           total
@@ -182,8 +221,8 @@ export async function getAnimeByFilters(variables: {
           hasNextPage
           perPage
         }
-        media(sort: $sort, genre_in: $genres, tag_in: $tags, genre_not_in: $genre_not_in, tag_not_in: $tag_not_in, seasonYear: $year, 
-          format_in: $format, status: $status, type: ANIME, isAdult: false) {
+        media(sort: $sort, genre_in: $genres, tag_in: $tags, genre_not_in: $genre_not_in, tag_not_in: $tag_not_in, 
+          seasonYear: $year, season: $season, format_in: $format, status: $status, type: ANIME, isAdult: false) {
           id
           title {
             romaji
@@ -198,7 +237,11 @@ export async function getAnimeByFilters(variables: {
           averageScore
           startDate {
             year
+            month
+            day
           }
+          season
+          seasonYear
         }
       }
     }
@@ -218,7 +261,8 @@ export async function getAnimeByFilters(variables: {
       ...(otherTags.length > 0 && { tags: otherTags }),
       ...(excludedGenreTags.length > 0 && { genre_not_in: excludedGenreTags }),
       ...(excludedOtherTags.length > 0 && { tag_not_in: excludedOtherTags }),
-      ...(variables.year && variables.year <= new Date().getFullYear() + 1 && { year: variables.year }),
+      ...(variables.year && { year: variables.year }),
+      ...(variables.season && { season: variables.season }),
       ...(variables.format && variables.format.length > 0 && { format: variables.format }),
       ...(variables.status && { status: variables.status })
     }
@@ -280,5 +324,168 @@ export async function getCharacterDetails(id: number) {
 
   const data = await fetchAniList(query, { id })
   return data.Character
+}
+
+export async function getFeaturedAnime() {
+  const query = `
+    query {
+      Page(page: 1, perPage: 5) {
+        media(type: ANIME, sort: TRENDING_DESC, status: RELEASING) {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          bannerImage
+          coverImage {
+            large
+          }
+          description
+          genres
+          averageScore
+          nextAiringEpisode {
+            episode
+            timeUntilAiring
+          }
+        }
+      }
+    }
+  `
+  const data = await fetchAniList(query)
+  return data.Page.media[0] // Return the most trending anime
+}
+
+export async function getCurrentSeason() {
+  const now = new Date()
+  const month = now.getMonth() + 1 // 0-based to 1-based
+  let season = "WINTER"
+  let year = now.getFullYear()
+
+  if (month >= 3 && month <= 5) season = "SPRING"
+  else if (month >= 6 && month <= 8) season = "SUMMER"
+  else if (month >= 9 && month <= 11) season = "FALL"
+  else if (month === 12) {
+    season = "WINTER"
+    year = year + 1
+  }
+
+  return { season, year }
+}
+
+export async function getNextSeason() {
+  const current = await getCurrentSeason()
+  let nextSeason = "SPRING"
+  let nextYear = current.year
+
+  switch (current.season) {
+    case "WINTER":
+      nextSeason = "SPRING"
+      break
+    case "SPRING":
+      nextSeason = "SUMMER"
+      break
+    case "SUMMER":
+      nextSeason = "FALL"
+      break
+    case "FALL":
+      nextSeason = "WINTER"
+      nextYear = current.year + 1
+      break
+  }
+
+  return { season: nextSeason, year: nextYear }
+}
+
+export async function getSeasonalAnime(season?: string, year?: number) {
+  const currentSeason = await getCurrentSeason()
+  const targetSeason = season || currentSeason.season
+  const targetYear = year || currentSeason.year
+
+  const query = `
+    query ($season: MediaSeason, $year: Int) {
+      Page(page: 1, perPage: 10) {
+        media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC) {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            large
+          }
+          averageScore
+          format
+          episodes
+          nextAiringEpisode {
+            episode
+            timeUntilAiring
+          }
+        }
+      }
+    }
+  `
+  const data = await fetchAniList(query, { season: targetSeason, year: targetYear })
+  return {
+    media: data.Page.media,
+    season: targetSeason,
+    year: targetYear
+  }
+}
+
+export async function getPopularAnime() {
+  const query = `
+    query {
+      Page(page: 1, perPage: 10) {
+        media(type: ANIME, sort: TRENDING_DESC) {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            large
+          }
+          averageScore
+          format
+          episodes
+        }
+      }
+    }
+  `
+  const data = await fetchAniList(query)
+  return data.Page.media
+}
+
+export async function getUpcomingAnime() {
+  const query = `
+    query {
+      Page(page: 1, perPage: 10) {
+        media(type: ANIME, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            large
+          }
+          startDate {
+            year
+            month
+            day
+          }
+          format
+          episodes
+          genres
+        }
+      }
+    }
+  `
+  const data = await fetchAniList(query)
+  return data.Page.media
 }
 

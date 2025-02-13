@@ -1,89 +1,87 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRef } from "react"
+import Image from "next/image"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
-interface AnimeData {
+interface AnimeRecommendation {
   id: number
   title: {
     romaji: string
-    english: string | null
+    english: string
   }
   coverImage: {
-    medium: string
+    large: string
   }
 }
 
 interface SimilarAnimeProps {
-  recommendations: AnimeData[]
+  recommendations: AnimeRecommendation[]
 }
 
 export default function SimilarAnime({ recommendations }: SimilarAnimeProps) {
-  const [scrollPosition, setScrollPosition] = useState(0)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (direction: "left" | "right") => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = direction === "left" ? -200 : 200
-      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" })
-      setScrollPosition(scrollContainerRef.current.scrollLeft + scrollAmount)
+    if (scrollRef.current) {
+      const scrollAmount = 200
+      scrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth"
+      })
     }
   }
 
-  const handleAnimeClick = (id: number) => {
-    router.push(`/anime/${id}`)
-  }
+  if (!recommendations.length) return null
 
   return (
     <div className="relative">
-      <h3 className="text-xl font-semibold mb-4">Podobne anime</h3>
-      <div className="flex items-center">
+      <h2 className="text-2xl font-bold mb-4">Podobne Anime</h2>
+      <div className="relative group">
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="absolute left-0 z-10"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => scroll("left")}
-          disabled={scrollPosition <= 0}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div
-          ref={scrollContainerRef}
-          className="flex overflow-x-auto space-x-4 scrollbar-hide"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          ref={scrollRef}
+          className="flex overflow-x-auto scrollbar-hide gap-3 py-2"
         >
           {recommendations.map((anime) => (
-            <Card
+            <Link
               key={anime.id}
-              className="w-32 flex-shrink-0 overflow-hidden bg-card hover:bg-accent transition-colors cursor-pointer"
-              onClick={() => handleAnimeClick(anime.id)}
+              href={`/anime/${anime.id}`}
+              className="flex-shrink-0 w-[160px]"
             >
-              <div className="aspect-[3/4] relative">
-                <img
-                  src={anime.coverImage.medium || "/placeholder.svg"}
-                  alt={anime.title.english || anime.title.romaji}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="p-2">
-                <p className="font-medium text-xs line-clamp-2">{anime.title.english || anime.title.romaji}</p>
-              </div>
-            </Card>
+              <Card className="overflow-hidden h-full">
+                <div className="relative aspect-[3/4]">
+                  <Image
+                    src={anime.coverImage.large}
+                    alt={anime.title.english || anime.title.romaji}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-2">
+                  <h3 className="font-medium text-sm line-clamp-2">
+                    {anime.title.english || anime.title.romaji}
+                  </h3>
+                </div>
+              </Card>
+            </Link>
           ))}
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="absolute right-0 z-10"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => scroll("right")}
-          disabled={
-            scrollContainerRef.current &&
-            scrollPosition >= scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth
-          }
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

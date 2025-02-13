@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/hooks/useAuth"
 import { cn } from "@/lib/utils"
 import type React from "react"
 import { Toaster } from "@/components/ui/toaster"
+import { MobileNav } from "@/components/layout/MobileNav"
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -23,7 +24,8 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <MainNav />
-            <main className="container mx-auto px-4 pt-20">{children}</main>
+            <main className="container mx-auto px-4 pt-20 pb-16 sm:pb-20">{children}</main>
+            <MobileNav />
             <Toaster />
           </AuthProvider>
         </ThemeProvider>

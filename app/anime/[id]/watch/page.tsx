@@ -1,126 +1,234 @@
 import { Suspense } from "react"
-import { notFound } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { VideoPlayer } from "@/components/VideoPlayer/VideoPlayer"
 import { getAnimeDetails } from "@/lib/api/anilist"
-import { getEpisodeData, getAvailablePlayers, getAnimeEpisodes, getAnimeComments } from "@/lib/api/laravel"
+import { getEpisodeData, getAnimeComments } from "@/lib/api/laravel"
+import { VideoPlayer } from "@/components/VideoPlayer/VideoPlayer"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import ErrorMessage from "@/components/ErrorMessage"
-import { PlayerSelector } from "@/components/PlayerSelector"
-import { CollapsibleSideMenu } from "@/components/CollapsibleSideMenu"
 import Comments from "@/components/Comments"
+import Link from "next/link"
+import Image from "next/image"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface Props {
-  params: { id: string }
-  searchParams: { episode: string }
+  params: {
+    id: string
+  }
+  searchParams: { episode?: string; tab?: string }
 }
 
-async function WatchPageContent({ params, searchParams }: Props) {
+const ITEMS_PER_PAGE = 20
+
+async function WatchPage({ params, searchParams }: Props) {
   const animeId = Number.parseInt(params.id, 10)
-  const episodeId = Number.parseInt(searchParams.episode, 10)
+  const episodeId = searchParams.episode ? Number.parseInt(searchParams.episode, 10) : 1
+  const currentTab = searchParams.tab || "episodes"
 
-  if (!episodeId) {
-    notFound()
-  }
+  const [anime, episode, comments] = await Promise.all([
+    getAnimeDetails(animeId),
+    getEpisodeData(animeId, episodeId),
+    getAnimeComments(animeId)
+  ])
 
-  try {
-    const [anime, episode, availablePlayers, episodes, comments] = await Promise.all([
-      getAnimeDetails(animeId),
-      getEpisodeData(animeId, episodeId),
-      getAvailablePlayers(animeId, episodeId),
-      getAnimeEpisodes(animeId).then((episodes) =>
-        episodes.map((episode) => ({
-          ...episode,
-          languages: {
-            dubbing: episode.languages.dubbing,
-            subtitles: episode.languages.subtitles,
-          },
-        })),
-      ),
-      getAnimeComments(animeId),
-    ])
+  const characters = anime.characters?.edges || []
+  const episodes = Array.from({ length: anime.episodes || 0 }, (_, i) => ({
+    id: i + 1,
+    number: i + 1,
+    title: `Odcinek ${i + 1}`,
+    thumbnail: "/placeholder.svg"
+  }))
 
-    if (!episode) {
-      notFound()
-    }
-
-    const previousEpisode = episodeId > 1 ? episodeId - 1 : null
-    const nextEpisode = episodeId < (anime.episodes || 0) ? episodeId + 1 : null
-
-    const videoSections = episode.sections.map((section) => ({
-      name: section.type,
-      start: section.start,
-      end: section.end,
-      color: section.type === "OPENING" ? "#ef4444" : "#3b82f6",
-    }))
-
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row">
-          <div className="flex-grow">
-            <VideoPlayer
-              src={episode.videoUrl}
-              poster={episode.thumbnail}
-              sections={videoSections}
-              animeId={animeId}
-              episodeId={episodeId}
-            />
-            <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold">
-                  {anime.title.english || anime.title.romaji} - Odcinek {episode.number}
-                </h1>
-                <h2 className="text-lg sm:text-xl text-muted-foreground">{episode.title}</h2>
-              </div>
-              <PlayerSelector players={availablePlayers} />
-            </div>
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-wrap gap-2 sm:gap-4">
-                {previousEpisode && (
-                  <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
-                    <Link href={`/anime/${animeId}/watch?episode=${previousEpisode}`}>← Poprzedni odcinek</Link>
-                  </Button>
-                )}
-                {nextEpisode && (
-                  <Button asChild size="sm" className="w-full sm:w-auto">
-                    <Link href={`/anime/${animeId}/watch?episode=${nextEpisode}`}>Następny odcinek →</Link>
-                  </Button>
-                )}
-                <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
-                  <Link href={`/anime/${animeId}`}>Powrót do strony anime</Link>
-                </Button>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Opis odcinka</h3>
-                <p className="text-sm sm:text-base text-muted-foreground">{episode.description}</p>
-              </div>
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-4">Komentarze</h3>
-                <Comments comments={comments} animeId={animeId} />
-              </div>
-            </div>
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="lg:w-3/4 space-y-6">
+          <div className="flex items-center justify-between">
+            <Link href={`/anime/${animeId}`} className="text-sm text-muted-foreground hover:text-foreground">
+              ← Wróć do strony anime
+            </Link>
+            <Button variant="outline" asChild>
+              <Link href={`/watch-together/create?animeId=${animeId}&episode=${episodeId}`}>
+                Oglądaj z innymi
+              </Link>
+            </Button>
           </div>
-          <CollapsibleSideMenu
-            characters={anime.characters?.edges || []}
-            recommendations={anime.recommendations?.nodes?.map((node: any) => node.mediaRecommendation) || []}
-            episodes={episodes}
+
+          <VideoPlayer
+            src={episode.videoUrl}
+            poster={episode.thumbnail}
+            sections={episode.sections.map((section) => ({
+              name: section.type,
+              start: section.start,
+              end: section.end,
+              color: section.type === "OPENING" ? "#ef4444" : "#3b82f6",
+            }))}
             animeId={animeId}
-            currentEpisode={episodeId}
+            episodeId={episodeId}
           />
+          
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-2xl font-bold">
+                {anime.title.english || anime.title.romaji}
+              </h1>
+              <h2 className="text-xl">
+                Odcinek {episode.number}: {episode.title}
+              </h2>
+            </div>
+
+            {episode.description && (
+              <p className="text-muted-foreground">{episode.description}</p>
+            )}
+
+            <div className="flex justify-between">
+              <Button
+                variant="outline"
+                disabled={episodeId === 1}
+                asChild
+              >
+                <Link href={`/anime/${animeId}/watch?episode=${episodeId - 1}&tab=${currentTab}`}>
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Poprzedni odcinek
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                disabled={episodeId === anime.episodes}
+                asChild
+              >
+                <Link href={`/anime/${animeId}/watch?episode=${episodeId + 1}&tab=${currentTab}`}>
+                  Następny odcinek
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Link>
+              </Button>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Komentarze</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Comments comments={comments} animeId={animeId} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <div className="lg:w-1/4">
+          <Card className="sticky top-20">
+            <CardHeader className="p-3">
+              <Tabs defaultValue={currentTab} className="w-full">
+                <TabsList className="w-full">
+                  <TabsTrigger value="episodes" asChild>
+                    <Link href={`/anime/${animeId}/watch?episode=${episodeId}&tab=episodes`}>
+                      Odcinki
+                    </Link>
+                  </TabsTrigger>
+                  <TabsTrigger value="characters" asChild>
+                    <Link href={`/anime/${animeId}/watch?episode=${episodeId}&tab=characters`}>
+                      Postacie
+                    </Link>
+                  </TabsTrigger>
+                  <TabsTrigger value="similar" asChild>
+                    <Link href={`/anime/${animeId}/watch?episode=${episodeId}&tab=similar`}>
+                      Podobne Anime
+                    </Link>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="episodes" className="mt-2">
+                  <ScrollArea className="h-[calc(100vh-250px)]">
+                    <div className="grid grid-cols-2 gap-2">
+                      {episodes.map((ep) => (
+                        <Link
+                          key={ep.id}
+                          href={`/anime/${animeId}/watch?episode=${ep.number}&tab=${currentTab}`}
+                          className={`block p-2 rounded-lg transition-colors ${
+                            ep.number === episodeId ? 'bg-accent' : 'hover:bg-accent/50'
+                          }`}
+                        >
+                          <div className="relative aspect-video mb-1">
+                            <Image
+                              src={ep.thumbnail}
+                              alt={ep.title}
+                              fill
+                              className="rounded object-cover"
+                            />
+                          </div>
+                          <p className="text-sm truncate">{ep.title}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="characters" className="mt-2">
+                  <ScrollArea className="h-[calc(100vh-250px)]">
+                    <div className="grid grid-cols-2 gap-2">
+                      {characters.slice(0, ITEMS_PER_PAGE).map((character) => (
+                        <Link
+                          key={character.node.id}
+                          href={`/character/${character.node.id}`}
+                          className="block p-2 rounded-lg hover:bg-accent/50 transition-colors"
+                        >
+                          <div className="relative aspect-[3/4] mb-1">
+                            <Image
+                              src={character.node.image.large}
+                              alt={character.node.name.full}
+                              fill
+                              className="rounded object-cover"
+                            />
+                          </div>
+                          <p className="text-sm truncate">{character.node.name.full}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {character.role}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="similar" className="mt-2">
+                  <ScrollArea className="h-[calc(100vh-250px)]">
+                    <div className="grid grid-cols-2 gap-2 p-2">
+                      {anime.recommendations?.nodes?.slice(0, ITEMS_PER_PAGE).map((rec: any) => (
+                        <Link
+                          key={rec.mediaRecommendation.id}
+                          href={`/anime/${rec.mediaRecommendation.id}`}
+                          className="block p-2 rounded-lg hover:bg-accent/50 transition-colors"
+                        >
+                          <div className="relative aspect-[3/4] mb-1">
+                            <Image
+                              src={rec.mediaRecommendation.coverImage.large}
+                              alt={rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.romaji}
+                              fill
+                              className="rounded object-cover"
+                            />
+                          </div>
+                          <p className="text-sm truncate">
+                            {rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.romaji}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+              </Tabs>
+            </CardHeader>
+          </Card>
         </div>
       </div>
-    )
-  } catch (error) {
-    console.error("Error fetching episode data:", error)
-    return <ErrorMessage message="Nie udało się załadować danych odcinka. Spróbuj ponownie później." />
-  }
+    </div>
+  )
 }
 
-export default function WatchPage({ params, searchParams }: Props) {
+export default function AnimeWatchPage(props: Props) {
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <WatchPageContent params={params} searchParams={searchParams} />
+      <WatchPage {...props} />
     </Suspense>
   )
 }
