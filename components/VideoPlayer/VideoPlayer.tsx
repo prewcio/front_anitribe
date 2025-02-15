@@ -263,13 +263,14 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
       {/* Controls */}
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300",
+          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
+          "p-4 md:p-4 p-2",
           showControls ? "opacity-100" : "opacity-0",
         )}
       >
         {/* Custom Progress Bar */}
         <div
-          className="relative w-full mb-4 h-1 group cursor-pointer"
+          className="relative w-full mb-2 md:mb-4 h-0.5 md:h-1 group cursor-pointer"
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect()
             const pos = (e.clientX - rect.left) / rect.width
@@ -304,7 +305,7 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
 
           {/* Thumb indicator */}
           <div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition-transform"
+            className="absolute top-1/2 -translate-y-1/2 w-2 h-2 md:w-3 md:h-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition-transform"
             style={{
               left: `${duration ? (currentTime / duration) * 100 : 0}%`,
               transform: "translate(-50%, -50%)",
@@ -320,36 +321,36 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
         </div>
 
         <div className="flex items-center justify-between text-white">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" onClick={togglePlay}>
-              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={togglePlay}>
+              {isPlaying ? <Pause className="h-4 w-4 md:h-6 md:w-6" /> : <Play className="h-4 w-4 md:h-6 md:w-6" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => handleSkip(-5)}>
-              <SkipBack className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={() => handleSkip(-5)}>
+              <SkipBack className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => handleSkip(5)}>
-              <SkipForward className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={() => handleSkip(5)}>
+              <SkipForward className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon" onClick={toggleMute}>
-                {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={toggleMute}>
+                {isMuted ? <VolumeX className="h-4 w-4 md:h-5 md:w-5" /> : <Volume2 className="h-4 w-4 md:h-5 md:w-5" />}
               </Button>
               <Slider
                 value={[isMuted ? 0 : volume * 100]}
                 max={100}
                 step={1}
-                className="w-24"
+                className="w-16 md:w-24"
                 onValueChange={([value]) => handleVolumeChange(value / 100)}
               />
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm">
-              {formatTime(currentTime)} / {formatTime(duration)}
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <span className="text-[10px] md:text-sm whitespace-nowrap">
+              {formatTime(currentTime)}&nbsp;/&nbsp;{formatTime(duration)}
             </span>
             <PlayerSettings currentTheme={currentTheme} onThemeChange={setCurrentTheme} />
-            <Button variant="ghost" size="icon" onClick={toggleFullscreen}>
-              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+            <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={toggleFullscreen}>
+              {isFullscreen ? <Minimize className="h-4 w-4 md:h-5 md:w-5" /> : <Maximize className="h-4 w-4 md:h-5 md:w-5" />}
             </Button>
           </div>
         </div>
