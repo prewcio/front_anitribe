@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Crown, Eye, Bell, Palette } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ProfileSettingsProps {
   user: User
@@ -183,6 +184,28 @@ export function ProfileSettings({ user, onSaveSettings }: ProfileSettingsProps) 
                     })
                   }
                 />
+              </div>
+
+              <div>
+                <Label>Język tytułów anime</Label>
+                <Select
+                  value={settings.preferences?.titleLanguage || 'romaji'}
+                  onValueChange={(value: 'romaji' | 'english' | 'native') =>
+                    setSettings({
+                      ...settings,
+                      preferences: { ...settings.preferences, titleLanguage: value }
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz język" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="romaji">Romaji (Rōmaji)</SelectItem>
+                    <SelectItem value="english">Angielski (English)</SelectItem>
+                    <SelectItem value="native">Japoński (日本語)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

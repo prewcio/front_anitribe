@@ -102,7 +102,14 @@ export function WatchingNow() {
 
   return (
     <div className="container mx-auto px-4 space-y-4">
-      <h2 className="text-2xl font-bold">Aktualnie oglądane</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Aktualnie oglądane</h2>
+        <Button variant="ghost" asChild>
+          <Link href="/my-list?tab=watching">
+            Zobacz więcej
+          </Link>
+        </Button>
+      </div>
       <div className="relative">
         <div
           ref={scrollContainerRef}

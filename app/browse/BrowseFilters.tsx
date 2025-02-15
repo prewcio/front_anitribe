@@ -79,12 +79,12 @@ export default function BrowseFilters({ currentFilters, onFiltersApply }: Browse
 
         <div>
           <label className="text-sm font-medium">Sezon</label>
-          <Select value={filters.season} onValueChange={(value) => handleFilterChange("season", value)}>
+          <Select value={filters.season || "all"} onValueChange={(value) => handleFilterChange("season", value === "all" ? undefined : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Dowolny" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Dowolny</SelectItem>
+              <SelectItem value="all">Dowolny</SelectItem>
               <SelectItem value="WINTER">Zima</SelectItem>
               <SelectItem value="SPRING">Wiosna</SelectItem>
               <SelectItem value="SUMMER">Lato</SelectItem>
@@ -96,14 +96,14 @@ export default function BrowseFilters({ currentFilters, onFiltersApply }: Browse
         <div>
           <label className="text-sm font-medium">Rok</label>
           <Select 
-            value={filters.year?.toString()} 
-            onValueChange={(value) => handleFilterChange("year", value ? parseInt(value) : undefined)}
+            value={filters.year?.toString() || "all"} 
+            onValueChange={(value) => handleFilterChange("year", value === "all" ? undefined : parseInt(value))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Dowolny" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Dowolny</SelectItem>
+              <SelectItem value="all">Dowolny</SelectItem>
               {Array.from({ length: 10 }, (_, i) => currentYear - i).map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}

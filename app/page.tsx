@@ -8,7 +8,7 @@ import { UpcomingAnime } from "@/components/home/UpcomingAnime"
 
 function HomeContent() {
   return (
-    <div className="container space-y-8 py-8">
+    <div className="container translate-y-[-50px] space-y-8 py-8">
       <HeroAnime />
       <WatchingNow />
       <SystemNewsFeed />

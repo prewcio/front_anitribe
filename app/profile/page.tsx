@@ -1,12 +1,37 @@
 import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getUserProfile } from "@/lib/api/laravel"
+import { Metadata, ResolvingMetadata } from "next"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import { ProfileHeaderWrapper } from "@/components/profile/ProfileHeaderWrapper"
 import { ActivityFeed } from "@/components/profile/ActivityFeed"
 import { ProfileSettingsWrapper } from "@/components/profile/ProfileSettingsWrapper"
 import AnimeGrid from "@/components/AnimeGrid"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+export async function generateMetadata(
+  { params }: { params: { username?: string } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const profile = await getUserProfile()
+  const isOwnProfile = !params.username
+
+  const title = isOwnProfile ? 
+    `Mój profil - ${profile.username}` : 
+    `Profil użytkownika ${profile.username}`
+  
+  const description = `Profil użytkownika ${profile.username} na AniTribe. Obejrzane anime: ${profile.stats.completed}, Aktualnie ogląda: ${profile.stats.watching}`
+
+  return {
+    title: title,
+    description: description,
+    openGraph: {
+      title: title,
+      description: description,
+      images: [profile.avatar],
+    },
+  }
+}
 
 async function ProfileContent() {
   const profile = await getUserProfile()

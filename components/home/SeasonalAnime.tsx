@@ -130,7 +130,7 @@ export function SeasonalAnime() {
           Sezon {formatSeason(seasonData.season)} {seasonData.year}
         </h2>
         <Button variant="ghost" asChild>
-          <Link href={`/browse?season=${seasonData.season}&year=${seasonData.year}`}>
+          <Link href={`/browse?season=${seasonData.season}&year=${seasonData.year}&sort=POPULARITY_DESC`}>
             Zobacz więcej
           </Link>
         </Button>

@@ -1,4 +1,6 @@
-import { Suspense } from "react"
+"use client"
+
+import { Suspense, useState, useEffect } from "react"
 import { getAnimeDetails } from "@/lib/api/anilist"
 import { getEpisodeData, getAnimeComments } from "@/lib/api/laravel"
 import { VideoPlayer } from "@/components/VideoPlayer/VideoPlayer"
@@ -21,16 +23,53 @@ interface Props {
 
 const ITEMS_PER_PAGE = 20
 
-async function WatchPage({ params, searchParams }: Props) {
+function WatchPage({ params, searchParams }: Props) {
+  const [mounted, setMounted] = useState(false)
+  const [anime, setAnime] = useState<any>(null)
+  const [episode, setEpisode] = useState<any>(null)
+  const [comments, setComments] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [titleLanguage, setTitleLanguage] = useState<'romaji' | 'english' | 'native'>('romaji')
+
   const animeId = Number.parseInt(params.id, 10)
   const episodeId = searchParams.episode ? Number.parseInt(searchParams.episode, 10) : 1
   const currentTab = searchParams.tab || "episodes"
 
-  const [anime, episode, comments] = await Promise.all([
-    getAnimeDetails(animeId),
-    getEpisodeData(animeId, episodeId),
-    getAnimeComments(animeId)
-  ])
+  useEffect(() => {
+    setMounted(true)
+    const savedLanguage = localStorage.getItem('titleLanguage') as 'romaji' | 'english' | 'native' || 'romaji'
+    setTitleLanguage(savedLanguage)
+  }, [])
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [animeData, episodeData, commentsData] = await Promise.all([
+          getAnimeDetails(animeId),
+          getEpisodeData(animeId, episodeId),
+          getAnimeComments(animeId)
+        ])
+        setAnime(animeData)
+        setEpisode(episodeData)
+        setComments(commentsData)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [animeId, episodeId])
+
+  const getTitle = () => {
+    if (!anime) return ""
+    if (!mounted) return anime.title.romaji
+    return anime.title[titleLanguage] || anime.title.romaji
+  }
+
+  if (isLoading || !anime || !episode) {
+    return <LoadingSpinner />
+  }
 
   const characters = anime.characters?.edges || []
   const episodes = Array.from({ length: anime.episodes || 0 }, (_, i) => ({
@@ -71,7 +110,7 @@ async function WatchPage({ params, searchParams }: Props) {
           <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-bold">
-                {anime.title.english || anime.title.romaji}
+                {getTitle()}
               </h1>
               <h2 className="text-xl">
                 Odcinek {episode.number}: {episode.title}
@@ -203,13 +242,13 @@ async function WatchPage({ params, searchParams }: Props) {
                           <div className="relative aspect-[3/4] mb-1">
                             <Image
                               src={rec.mediaRecommendation.coverImage.large}
-                              alt={rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.romaji}
+                              alt={rec.mediaRecommendation.title.romaji || rec.mediaRecommendation.title.english}
                               fill
                               className="rounded object-cover"
                             />
                           </div>
                           <p className="text-sm truncate">
-                            {rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.romaji}
+                            {rec.mediaRecommendation.title.romaji || rec.mediaRecommendation.title.english}
                           </p>
                         </Link>
                       ))}
@@ -232,4 +271,6 @@ export default function AnimeWatchPage(props: Props) {
     </Suspense>
   )
 }
+
+export { generateMetadata } from "./metadata"
 

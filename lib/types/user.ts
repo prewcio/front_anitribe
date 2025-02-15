@@ -80,6 +80,9 @@ export interface UserSettings {
     prefersDark: boolean;
     accentColor: string;
   };
+  preferences: {
+    titleLanguage: 'romaji' | 'english' | 'native';
+  };
   customization: {
     avatarAnimation?: string;
     nicknameColor?: string;

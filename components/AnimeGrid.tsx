@@ -62,7 +62,7 @@ export default function AnimeGrid({ items }: AnimeGridProps) {
               </CardContent>
               <CardHeader className="flex-1 flex flex-col justify-between">
                 <CardTitle className="text-lg line-clamp-2">
-                  {item.title.english || item.title.romaji}
+                  {item.title.romaji || item.title.english}
                 </CardTitle>
                 <div className="space-y-1 mt-2">
                   <p className="text-sm text-muted-foreground">

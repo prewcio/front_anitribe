@@ -1,4 +1,4 @@
-import { Inter as FontSans } from "next/font/google"
+import { Inter } from "next/font/google"
 import { MainNav } from "@/components/layout/MainNav"
 import { ThemeProvider } from "@/components/ThemeProvider"
 import { AuthProvider } from "@/lib/hooks/useAuth"
@@ -6,11 +6,31 @@ import { cn } from "@/lib/utils"
 import type React from "react"
 import { Toaster } from "@/components/ui/toaster"
 import { MobileNav } from "@/components/layout/MobileNav"
+import type { Metadata } from "next"
+import './globals.css'
 
-const fontSans = FontSans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 })
+
+export const metadata: Metadata = {
+  title: {
+    default: "AniTribe - Oglądaj anime online",
+    template: "%s | AniTribe"
+  },
+  description: "Oglądaj anime online w najlepszej jakości. Dołącz do społeczności miłośników anime!",
+  keywords: ["anime", "streaming", "polska", "odcinki", "online"],
+  metadataBase: new URL("https://anitribe.pl"),
+  openGraph: {
+    type: "website",
+    locale: "pl_PL",
+    url: "https://anitribe.pl",
+    title: "AniTribe",
+    description: "Oglądaj anime online w najlepszej jakości. Dołącz do społeczności miłośników anime!",
+    siteName: "AniTribe"
+  }
+}
 
 export default function RootLayout({
   children,
@@ -20,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="pl" suppressHydrationWarning>
       <head />
-      <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
+      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <MainNav />
@@ -33,11 +53,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-
-
-import './globals.css'
-
-export const metadata = {
-      generator: 'v0.dev'
-    };

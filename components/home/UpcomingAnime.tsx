@@ -77,9 +77,17 @@ export function UpcomingAnime() {
     return types[format] || format
   }
 
-  const formatDate = (date: { year: number; month: number; day: number | null }) => {
-    if (!date.day) return `${date.year}-${String(date.month).padStart(2, "0")}`
-    return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`
+  const formatDate = (date: { year: number | null; month: number | null; day: number | null }) => {
+    if (!date.year) return "Data nieznana"
+    if (!date.month) return date.year.toString()
+    
+    const months = [
+      "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+      "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"
+    ]
+    
+    if (!date.day) return `${months[date.month - 1]} ${date.year}`
+    return `${date.day} ${months[date.month - 1]} ${date.year}`
   }
 
   if (isLoading) {
@@ -108,7 +116,7 @@ export function UpcomingAnime() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Nadchodzące premiery</h2>
         <Button variant="ghost" asChild>
-          <Link href="/browse?status=NOT_YET_RELEASED">
+          <Link href="/browse?status=NOT_YET_RELEASED&sort=START_DATE_DESC">
             Zobacz więcej
           </Link>
         </Button>

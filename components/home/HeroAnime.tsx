@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Play, Plus } from "lucide-react"
 import { getFeaturedAnime } from "@/lib/api/anilist"
+import { formatDescription } from "@/lib/utils/formatDescription"
 
 interface FeaturedAnime {
   id: number
@@ -31,10 +32,14 @@ interface FeaturedAnime {
 export function HeroAnime() {
   const [mounted, setMounted] = useState(false)
   const [featuredAnime, setFeaturedAnime] = useState<FeaturedAnime | null>(null)
+  const [formattedDescription, setFormattedDescription] = useState<string>("")
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
     async function fetchData() {
       try {
         const data = await getFeaturedAnime()
@@ -47,6 +52,16 @@ export function HeroAnime() {
     }
     fetchData()
   }, [])
+
+  useEffect(() => {
+    async function formatDesc() {
+      if (featuredAnime?.description) {
+        const formatted = await formatDescription(featuredAnime.description)
+        setFormattedDescription(formatted)
+      }
+    }
+    formatDesc()
+  }, [featuredAnime?.description])
 
   if (!mounted || isLoading || !featuredAnime) {
     return (
@@ -112,9 +127,12 @@ export function HeroAnime() {
               ))}
             </div>
             
-            <p className="text-lg text-muted-foreground line-clamp-3">
-              {featuredAnime.description}
-            </p>
+            {mounted && formattedDescription && (
+              <div 
+                className="text-lg text-muted-foreground line-clamp-3"
+                dangerouslySetInnerHTML={{ __html: formattedDescription }}
+              />
+            )}
             
             <div className="flex items-center gap-4">
               <Button asChild size="lg">

@@ -6,6 +6,10 @@ const GENRE_TAGS = new Set([
   'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller', 'Hentai'
 ]);
 
+// Add cache implementation at the top of the file
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const cache = new Map<string, { data: any; timestamp: number }>();
+
 async function fetchAniList(query: string, variables: any = {}) {
   try {
     console.log("Fetching from AniList API:", { query, variables })
@@ -81,8 +85,15 @@ export async function searchAnime(search: string) {
 }
 
 export async function getAnimeDetails(id: number) {
+  // Check cache first
+  const cacheKey = `anime:${id}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+
   const query = `
-    query ($id: Int) {
+    query ($id: Int!) {
       Media(id: $id, type: ANIME) {
         id
         title {
@@ -90,12 +101,14 @@ export async function getAnimeDetails(id: number) {
           english
           native
         }
+        description
         coverImage {
           large
         }
         bannerImage
-        description
+        format
         episodes
+        duration
         status
         startDate {
           year
@@ -109,8 +122,7 @@ export async function getAnimeDetails(id: number) {
         }
         season
         seasonYear
-        format
-        duration
+        averageScore
         genres
         tags {
           name
@@ -122,48 +134,18 @@ export async function getAnimeDetails(id: number) {
             name
           }
         }
-        characters(sort: ROLE) {
+        characters {
           edges {
             node {
               id
               name {
                 full
-                native
               }
               image {
                 large
               }
-              description
             }
             role
-            voiceActors(language: JAPANESE) {
-              id
-              name {
-                full
-              }
-              image {
-                large
-              }
-            }
-          }
-        }
-        recommendations {
-          nodes {
-            mediaRecommendation {
-              id
-              title {
-                romaji
-                english
-                native
-              }
-              coverImage {
-                large
-              }
-              format
-              status
-              episodes
-              averageScore
-            }
           }
         }
         relations {
@@ -182,8 +164,21 @@ export async function getAnimeDetails(id: number) {
               coverImage {
                 large
               }
-              episodes
-              averageScore
+            }
+          }
+        }
+        recommendations {
+          nodes {
+            mediaRecommendation {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
             }
           }
         }
@@ -193,10 +188,33 @@ export async function getAnimeDetails(id: number) {
         }
       }
     }
-  `
+  `;
 
-  const data = await fetchAniList(query, { id })
-  return data.Media
+  try {
+    const data = await fetchAniList(query, { id });
+    const result = data.Media;
+
+    // Store in cache
+    cache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error fetching anime details:", error);
+    throw error;
+  }
+}
+
+// Helper function to clear cache
+export function clearAnimeCache() {
+  cache.clear();
+}
+
+// Helper function to remove specific anime from cache
+export function removeFromCache(id: number) {
+  cache.delete(`anime:${id}`);
 }
 
 export type SortOption = "POPULARITY_DESC" | "SCORE_DESC" | "TRENDING_DESC" | "START_DATE_DESC"

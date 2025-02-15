@@ -207,14 +207,20 @@ export function MainNav() {
                       <AvatarFallback>{user?.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-medium">{user?.username || "Użytkownik"}</p>
-                      <p className="text-xs text-muted-foreground">Poziom {user?.level || 1}</p>
+                      <div>
+                        <p className="text-sm font-medium">{user?.username || "Użytkownik"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user ? `Poziom ${user.level || 1}` : "Poziom 1"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="font-medium">Postęp XP</span>
-                      <span className="text-muted-foreground">{user?.xp || 0} / 4,000 XP</span>
+                      <span className="text-muted-foreground">
+                        {user ? `${user.xp || 0} / 4,000 XP` : "0 / 4,000 XP"}
+                      </span>
                     </div>
                     <div className="w-full bg-accent/50 h-2 rounded-full">
                       <div 

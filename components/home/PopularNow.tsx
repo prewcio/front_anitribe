@@ -98,7 +98,7 @@ export function PopularNow() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Popularne teraz</h2>
         <Button variant="ghost" asChild>
-          <Link href="/browse?sort=TRENDING_DESC">
+          <Link href="/browse?sort=POPULARITY_DESC">
             Zobacz więcej
           </Link>
         </Button>
