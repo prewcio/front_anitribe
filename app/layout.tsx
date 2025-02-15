@@ -43,10 +43,12 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <MainNav />
-            <main className="container mx-auto px-4 pt-20 pb-16 sm:pb-20">{children}</main>
-            <MobileNav />
-            <Toaster />
+            <div className="flex min-h-screen flex-col">
+              <MainNav />
+              <main className="flex-1 pt-16 pb-16 sm:pb-20">{children}</main>
+              <MobileNav />
+              <Toaster />
+            </div>
           </AuthProvider>
         </ThemeProvider>
       </body>

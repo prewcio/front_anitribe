@@ -8,13 +8,15 @@ import { UpcomingAnime } from "@/components/home/UpcomingAnime"
 
 function HomeContent() {
   return (
-    <div className="container translate-y-[-50px] space-y-8 py-8">
+    <div>
       <HeroAnime />
-      <WatchingNow />
-      <SystemNewsFeed />
-      <SeasonalAnime />
-      <PopularNow />
-      <UpcomingAnime />
+      <div className="container mx-auto space-y-8 py-8">
+        <WatchingNow />
+        <SystemNewsFeed />
+        <SeasonalAnime />
+        <PopularNow />
+        <UpcomingAnime />
+      </div>
     </div>
   )
 }
