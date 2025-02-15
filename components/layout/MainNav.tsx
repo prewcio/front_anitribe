@@ -128,59 +128,110 @@ export function MainNav() {
             </div>
           </div>
 
-          <div className="custom-lg:hidden">
+          <div className="custom-lg:hidden flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="text-foreground"
+            >
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
+                <Button variant="ghost" size="icon" className="relative">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.avatar || "/placeholder-user.jpg"} />
+                    <AvatarFallback>{user?.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                  </Avatar>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] sm:w-[400px]">
+              <SheetContent side="right" className="w-full sm:w-[400px] p-0">
                 <div className="flex flex-col h-full">
-                  <div className="space-y-4 py-4">
-                    {navItems.map((item) => (
+                  <div className="p-4 border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user?.avatar || "/placeholder-user.jpg"} />
+                        <AvatarFallback>{user?.username?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{user?.username || "Użytkownik"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {user ? `Poziom ${user.level || 1}` : "Poziom 1"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="font-medium">Postęp XP</span>
+                        <span className="text-muted-foreground">
+                          {user ? `${user.xp || 0} / 4,000 XP` : "0 / 4,000 XP"}
+                        </span>
+                      </div>
+                      <div className="w-full bg-accent/50 h-2 rounded-full">
+                        <div 
+                          className="bg-gradient-to-r from-purple-600 to-blue-600 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(((user?.xp || 0) / 4000) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-b border-border">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm font-medium">12</p>
+                        <p className="text-xs text-muted-foreground">Oglądam</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">86</p>
+                        <p className="text-xs text-muted-foreground">Ukończone</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">1,432</p>
+                        <p className="text-xs text-muted-foreground">Odcinki</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-auto">
+                    <div className="p-2">
                       <Link 
-                        key={item.href} 
-                        href={item.href}
+                        href="/profile" 
+                        className="flex items-center p-2.5 rounded-md hover:bg-accent"
                         onClick={() => setSheetOpen(false)}
                       >
-                        <Button variant="ghost" className="w-full justify-start">
-                          <item.icon className="w-4 h-4 mr-2" />
-                          {item.title}
-                        </Button>
+                        <User className="mr-2.5 h-4 w-4" />
+                        <span>Profil</span>
                       </Link>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-auto border-t pt-4">
-                    <div className="flex items-center justify-between px-4">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                      <Link 
+                        href="/notifications" 
+                        className="flex items-center justify-between w-full p-2.5 rounded-md hover:bg-accent"
+                        onClick={() => setSheetOpen(false)}
                       >
-                        {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                      </Button>
-                      {isAuthenticated ? (
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" asChild>
-                            <Link href="/profile">
-                              <User className="h-4 w-4 mr-2" />
-                              Profil
-                            </Link>
-                          </Button>
-                          <Button variant="ghost" onClick={handleLogout}>
-                            <LogOut className="h-4 w-4 mr-2" />
-                            Wyloguj
-                          </Button>
+                        <div className="flex items-center">
+                          <Bell className="mr-2.5 h-4 w-4" />
+                          <span>Powiadomienia</span>
                         </div>
-                      ) : (
-                        <Button onClick={handleLogin}>
-                          <LogIn className="h-4 w-4 mr-2" />
-                          Zaloguj
-                        </Button>
-                      )}
+                        <span className="bg-purple-600/10 text-purple-600 text-xs font-medium px-2 py-0.5 rounded-full">3</span>
+                      </Link>
                     </div>
+                  </div>
+
+                  <div className="p-4 border-t border-border">
+                    {isAuthenticated ? (
+                      <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Wyloguj
+                      </Button>
+                    ) : (
+                      <Button className="w-full" onClick={handleLogin}>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Zaloguj
+                      </Button>
+                    )}
                   </div>
                 </div>
               </SheetContent>
