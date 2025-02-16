@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { getAnimeByFilters, type BrowseFilters as MALBrowseFilters } from "@/lib/api/mal"
+import { getAnimeByFilters, type BrowseFilters } from "@/lib/api/hybrid"
 import AnimeGrid from "@/components/AnimeGrid"
 import BrowseFilterPanel, { type FiltersState } from "./BrowseFilters"
 import { SortingOptions } from "./SortingOptions"
@@ -34,7 +34,7 @@ export default function BrowsePage() {
     excludedGenres: [],
   })
 
-  const fetchAnime = useCallback(async (filters: MALBrowseFilters) => {
+  const fetchAnime = useCallback(async (filters: BrowseFilters) => {
     setIsLoading(true)
     try {
       const data = await getAnimeByFilters(filters)
@@ -131,7 +131,7 @@ function BrowseContent() {
     }
   })
 
-  const fetchAnime = useCallback(async (filters: MALBrowseFilters) => {
+  const fetchAnime = useCallback(async (filters: BrowseFilters) => {
     setIsLoading(true)
     try {
       const data = await getAnimeByFilters(filters)
@@ -207,14 +207,19 @@ function BrowseContent() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-bold">Browse Anime</h1>
-          <div className="flex flex-wrap gap-4">
-            <BrowseFilterPanel
-              currentFilters={currentFilters}
-              onFiltersApply={handleFiltersChange}
-            />
+      <h1 className="text-3xl font-bold mb-8">Browse Anime</h1>
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Left sidebar with filters */}
+        <div className="md:w-1/4">
+          <BrowseFilterPanel
+            currentFilters={currentFilters}
+            onFiltersApply={handleFiltersChange}
+          />
+        </div>
+        
+        {/* Right content area */}
+        <div className="md:w-3/4">
+          <div className="mb-6">
             <Select value={currentSort} onValueChange={handleSortChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sortuj" />
@@ -227,34 +232,35 @@ function BrowseContent() {
               </SelectContent>
             </Select>
           </div>
+
+          {error ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Błąd</AlertTitle>
+              <AlertDescription>{error || "Wystąpił nieznany błąd"}</AlertDescription>
+            </Alert>
+          ) : isInitialLoading ? (
+            <LoadingGrid />
+          ) : (
+            <>
+              {anime.length > 0 ? (
+                <AnimeGrid items={anime} />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Nie znaleziono żadnych anime spełniających kryteria.</p>
+                </div>
+              )}
+              {isLoading && <LoadingGrid />}
+              {pageInfo?.hasNextPage && anime.length > 0 && (
+                <InfiniteScroll 
+                  onLoadMore={loadMore} 
+                  hasMore={pageInfo.hasNextPage}
+                  rootMargin="10px"
+                />
+              )}
+            </>
+          )}
         </div>
-        {error ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Błąd</AlertTitle>
-            <AlertDescription>{error || "Wystąpił nieznany błąd"}</AlertDescription>
-          </Alert>
-        ) : isInitialLoading ? (
-          <LoadingGrid />
-        ) : (
-          <>
-            {anime.length > 0 ? (
-              <AnimeGrid items={anime} />
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Nie znaleziono żadnych anime spełniających kryteria.</p>
-              </div>
-            )}
-            {isLoading && <LoadingGrid />}
-            {pageInfo?.hasNextPage && anime.length > 0 && (
-              <InfiniteScroll 
-                onLoadMore={loadMore} 
-                hasMore={pageInfo.hasNextPage}
-                rootMargin="10px"
-              />
-            )}
-          </>
-        )}
       </div>
     </div>
   )

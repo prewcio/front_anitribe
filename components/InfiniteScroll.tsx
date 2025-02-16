@@ -8,7 +8,7 @@ interface InfiniteScrollProps {
   rootMargin?: string
 }
 
-export function InfiniteScroll({ onLoadMore, hasMore, rootMargin = "400px" }: InfiniteScrollProps) {
+export function InfiniteScroll({ onLoadMore, hasMore, rootMargin = "40px" }: InfiniteScrollProps) {
   const observerRef = useRef<IntersectionObserver>()
   const targetRef = useRef<HTMLDivElement>(null)
   const triggeredRef = useRef(false)
