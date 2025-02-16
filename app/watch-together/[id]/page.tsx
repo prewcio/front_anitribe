@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { VideoPlayer } from "@/components/VideoPlayer/VideoPlayer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { getAnimeEpisodeThumbnails } from "@/lib/api/anilist"
 import { 
   Users, Send, Play, Pause, SkipForward, ChevronLeft, ChevronRight,
   Settings, Lock, Shield, UserPlus, UserMinus, Plus
@@ -84,6 +85,8 @@ export default function WatchTogetherRoom({ params, searchParams }: Props) {
       timestamp: new Date().toISOString()
     }
   ])
+  const [episodeThumbnails, setEpisodeThumbnails] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const viewers = [
     { name: "AnimeKing", avatar: "/placeholder-user.jpg", isHost: true },
@@ -126,6 +129,24 @@ export default function WatchTogetherRoom({ params, searchParams }: Props) {
     }
   ]
 
+  const animeId = searchParams.animeId ? parseInt(searchParams.animeId, 10) : 1
+  const episodeNumber = searchParams.episode ? parseInt(searchParams.episode, 10) : 1
+
+  useEffect(() => {
+    async function fetchEpisodeThumbnails() {
+      try {
+        const thumbnails = await getAnimeEpisodeThumbnails(animeId)
+        setEpisodeThumbnails(thumbnails)
+      } catch (error) {
+        console.error("Error fetching episode thumbnails:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchEpisodeThumbnails()
+  }, [animeId])
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     if (!message.trim()) return
@@ -146,8 +167,6 @@ export default function WatchTogetherRoom({ params, searchParams }: Props) {
   }
 
   const currentTab = searchParams.tab || "chat"
-  const animeId = searchParams.animeId ? parseInt(searchParams.animeId, 10) : 1
-  const episodeNumber = searchParams.episode ? parseInt(searchParams.episode, 10) : 1
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -276,22 +295,26 @@ export default function WatchTogetherRoom({ params, searchParams }: Props) {
                       Dodaj do kolejki
                     </Button>
                     <div className="space-y-2">
-                      {episodes.map((ep) => (
+                      {episodeThumbnails.map((ep, index) => (
                         <div
-                          key={ep.id}
+                          key={index}
                           className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50"
                         >
                           <div className="relative aspect-video w-32">
                             <Image
-                              src={ep.thumbnail}
-                              alt={ep.title}
+                              src={ep.thumbnail || "/placeholder.svg"}
+                              alt={ep.title || `Odcinek ${index + 1}`}
                               fill
                               className="rounded object-cover"
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{ep.title}</p>
-                            <p className="text-xs text-muted-foreground">Odcinek {ep.number}</p>
+                            <p className="text-sm font-medium truncate">
+                              {ep.title || `Odcinek ${index + 1}`}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Odcinek {index + 1}
+                            </p>
                           </div>
                           <Button variant="ghost" size="icon">
                             <Play className="w-4 h-4" />

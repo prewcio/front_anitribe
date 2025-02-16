@@ -1,3 +1,6 @@
+// Cache duration in milliseconds (30 minutes)
+export const CACHE_DURATION = 30 * 60 * 1000;
+
 export const cache = new Map<string, { data: any; timestamp: number }>();
 
 export function clearCache() {
@@ -6,6 +9,4 @@ export function clearCache() {
 
 export function removeFromCache(key: string) {
   cache.delete(key);
-}
-
-export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds 
+} 

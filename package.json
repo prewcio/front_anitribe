@@ -2,6 +2,7 @@
   "name": "anitribe",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@docchi/shinden-description": "^1.0.1",
     "@emotion/is-prop-valid": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.2.2",
@@ -41,11 +43,13 @@
     "@tailwindcss/typography": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@vitalets/google-translate-api": "^9.2.1",
     "autoprefixer": "^10.4.20",
+    "axios": "^1.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
-    "country-flag-icons": "latest",
+    "country-flag-icons": "^1.5.16",
     "date-fns": "latest",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "latest",

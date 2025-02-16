@@ -12,9 +12,10 @@ import Comments from "@/components/Comments"
 import { InteractiveTag } from "@/components/InteractiveTag"
 import { StudioButton } from "@/components/StudioButton"
 import { NextEpisodeBox } from "./NextEpisodeBox"
-import Characters from "@/components/Characters"
+import CharacterList from "./CharacterList"
 import SimilarAnime from "@/components/SimilarAnime"
 import { formatDescription } from "@/lib/utils/formatDescription"
+import { translateWithCache } from "@/lib/utils/translate"
 import { redirect } from "next/navigation"
 import { getEpisodeData } from "@/lib/api/laravel" // Import getEpisodeData
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -147,8 +148,9 @@ async function AnimeDetails({ params, searchParams }: Props) {
     notFound()
   }
 
-  // Format description after getting the data
-  const formattedDescription = await formatDescription(anime.description)
+  // Translate and format description
+  const translatedDescription = await translateWithCache(anime.description)
+  const formattedDescription = await formatDescription(translatedDescription)
 
   // Filter related anime once we have the data
   const relatedAnime = anime.relations?.map((relation: AnimeRelation) => ({
@@ -362,12 +364,12 @@ async function AnimeDetails({ params, searchParams }: Props) {
           </div>
         </div>
         <div className="mt-8 space-y-8">
-          {relatedAnime.length > 0 && (
-            <RelatedAnimeSection relatedAnime={relatedAnime} />
+          {anime.characters?.edges?.length > 0 && (
+            <CharacterList characters={anime.characters} />
           )}
           
-          {anime.characters?.length > 0 && (
-            <Characters characters={anime.characters} />
+          {relatedAnime.length > 0 && (
+            <RelatedAnimeSection relatedAnime={relatedAnime} />
           )}
 
           {anime.recommendations?.length > 0 && (

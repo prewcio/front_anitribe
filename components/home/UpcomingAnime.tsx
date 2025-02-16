@@ -6,14 +6,14 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react"
-import { getUpcomingAnime } from "@/lib/api/hybrid"
+import { getUpcomingAnimeWithMalIds } from "@/lib/api/anilist"
 
 interface UpcomingAnime {
   id: number
   title: {
     romaji: string
-    english: string
-    native: string
+    english: string | null
+    native: string | null
   }
   coverImage: {
     large: string
@@ -32,14 +32,16 @@ export function UpcomingAnime() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [upcomingAnime, setUpcomingAnime] = useState<UpcomingAnime[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const data = await getUpcomingAnime()
+        const data = await getUpcomingAnimeWithMalIds()
         setUpcomingAnime(data)
       } catch (error) {
         console.error("Error fetching upcoming anime:", error)
+        setError("Failed to load upcoming anime")
       } finally {
         setIsLoading(false)
       }

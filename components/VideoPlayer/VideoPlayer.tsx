@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward, AlertCircle } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
@@ -16,11 +16,41 @@ interface VideoPlayerProps {
   sections?: VideoSection[]
   animeId: number
   episodeId: number
+  quality?: string
+}
+
+function getVideoService(url: string): string | null {
+  if (url.includes('cda.pl')) return 'cda'
+  if (url.includes('vk.com')) return 'vk'
+  if (url.includes('sibnet.ru')) return 'sibnet'
+  if (url.includes('drive.google.com')) return 'gdrive'
+  if (url.includes('mega.nz')) return 'mega'
+  return null
+}
+
+async function fetchVideoUrl(sourceUrl: string, service: string): Promise<string> {
+  try {
+    const response = await fetch('/api/get-video', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url: sourceUrl, service }),
+    })
+
+    if (!response.ok) throw new Error('Failed to fetch video URL')
+    
+    const data = await response.json()
+    return data.videoUrl
+  } catch (error) {
+    console.error('Error fetching video URL:', error)
+    throw error
+  }
 }
 
 const PROGRESS_STORAGE_KEY = "anitribe-video-progress"
 
-export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: VideoPlayerProps) {
+export function VideoPlayer({ src, poster, sections = [], animeId, episodeId, quality }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -33,6 +63,32 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
   const [error, setError] = useState<string | null>(null)
   const [hoveredSection, setHoveredSection] = useState<VideoSection | null>(null)
   const [currentTheme, setCurrentTheme] = useState<PlayerTheme>(playerThemes[0])
+  const [isLoading, setIsLoading] = useState(false)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+
+  // Fetch video URL on mount or when src changes
+  useEffect(() => {
+    const service = getVideoService(src)
+    if (service) {
+      setIsLoading(true)
+      setError(null)
+      fetchVideoUrl(src, service)
+        .then(url => {
+          setVideoUrl(url)
+          setError(null)
+        })
+        .catch(err => {
+          console.error('Error loading video:', err)
+          setError("Unable to load video. The source might be unavailable or restricted.")
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    } else {
+      // If no service match, use the original URL
+      setVideoUrl(src)
+    }
+  }, [src])
 
   const togglePlay = useCallback(() => {
     if (videoRef.current) {
@@ -83,7 +139,7 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
 
   const handleSkipSection = useCallback((endTime: number) => {
     if (videoRef.current) {
-      videoRef.currentTime = endTime
+      videoRef.current.currentTime = endTime
       setCurrentTime(endTime)
     }
   }, [])
@@ -203,7 +259,18 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
   }
 
   const getCurrentSection = () => {
-    return sections.find((section) => currentTime >= section.start && currentTime < section.end)
+    return sections.find((section) => currentTime >= section.start && currentTime < section.end) || null
+  }
+
+  if (isLoading) {
+    return (
+      <div className="relative bg-black aspect-video flex items-center justify-center">
+        <div className="text-white text-center">
+          <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
+          <p>Loading video...</p>
+        </div>
+      </div>
+    )
   }
 
   if (error) {
@@ -232,15 +299,20 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId }: 
       <PlayerContextMenu>
         <video
           ref={videoRef}
-          src={src}
+          src={videoUrl || undefined}
           poster={poster}
           className="w-full h-full"
           onClick={togglePlay}
           preload="metadata"
+          crossOrigin="anonymous"
           onLoadedMetadata={(e) => {
             const video = e.target as HTMLVideoElement
             setDuration(video.duration)
             setCurrentTime(video.currentTime)
+          }}
+          onError={(e) => {
+            console.error('Video loading error:', e)
+            setError("Unable to load video. The source might be unavailable or restricted.")
           }}
         />
       </PlayerContextMenu>

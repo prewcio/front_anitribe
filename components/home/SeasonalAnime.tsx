@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Star } from "lucide-react"
-import { getSeasonalAnime } from "@/lib/api/hybrid"
+import { getSeasonalAnimeWithMalIds } from "@/lib/api/anilist"
 
 interface SeasonalAnime {
   id: number
@@ -16,10 +16,9 @@ interface SeasonalAnime {
     native: string | null
   }
   coverImage: {
-    large: string | null
-    medium: string | null
+    large: string
   }
-  averageScore: number | null
+  averageScore: number
   format: string
   episodes: number | null
   nextAiringEpisode?: {
@@ -43,7 +42,7 @@ export function SeasonalAnime() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const data = await getSeasonalAnime()
+        const data = await getSeasonalAnimeWithMalIds()
         setSeasonData(data)
         setError(null)
       } catch (error) {
@@ -162,7 +161,7 @@ export function SeasonalAnime() {
               href={`/anime/${anime.id}`}
               className="flex-none"
             >
-              <Card className="overflow-hidden w-[240px]">
+              <Card className="overflow-hidden w-[240px] group hover:ring-2 hover:ring-purple-500 transition-all duration-200">
                 <div className="aspect-[2/3] relative">
                   {anime.coverImage.large && (
                     <Image
@@ -172,8 +171,22 @@ export function SeasonalAnime() {
                       className="object-cover"
                     />
                   )}
+                  {anime.nextAiringEpisode && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent pb-3 pt-8">
+                      <div className="flex flex-col px-3">
+                        <div className="bg-background/80 rounded-lg p-2 shadow-lg backdrop-blur-sm border border-purple-500/20">
+                          <span className="text-sm font-bold text-purple-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)] block">
+                            Następny odcinek
+                          </span>
+                          <span className="text-sm font-medium text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                            EP {anime.nextAiringEpisode.episode} za {formatTimeUntilAiring(anime.nextAiringEpisode.timeUntilAiring)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {anime.averageScore && (
-                    <div className="absolute top-2 right-2 bg-background/80 px-2 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                    <div className="absolute top-2 right-2 bg-background/80 px-2 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-lg backdrop-blur-sm">
                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                       {anime.averageScore}%
                     </div>
@@ -187,12 +200,6 @@ export function SeasonalAnime() {
                     {formatType(anime.format)}
                     {anime.episodes && ` • ${anime.episodes} odcinków`}
                   </p>
-                  {anime.nextAiringEpisode && (
-                    <p className="text-sm text-muted-foreground">
-                      Odcinek {anime.nextAiringEpisode.episode} za{" "}
-                      {formatTimeUntilAiring(anime.nextAiringEpisode.timeUntilAiring)}
-                    </p>
-                  )}
                 </div>
               </Card>
             </Link>

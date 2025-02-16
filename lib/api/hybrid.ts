@@ -1,8 +1,9 @@
 import * as mal from './mal';
-import { getAnimeDetails as getAniListDetails } from './anilist';
+import { getAnimeDetails as getAniListDetails, getAnimeCharactersByName } from './anilist';
 import { cache, CACHE_DURATION } from './cache';
 import type { NextAiringEpisode, SortOption } from './types';
 import { fetchMAL, transformMALAnime, getSeasonalAnime as getMALSeasonalAnime, getCurrentSeason as getMALCurrentSeason } from './mal';
+import { getShindenDescription } from '@/lib/utils/shindenDescription';
 
 // Map to store MAL to AniList ID mappings
 const idMappingCache = new Map<number, number>();
@@ -76,6 +77,51 @@ async function getNextEpisodeInfo(malId: number): Promise<NextAiringEpisode | nu
   }
 }
 
+interface VoiceActor {
+  id: number;
+  name: {
+    full: string;
+    native: string;
+  };
+  image: {
+    medium: string;
+  };
+}
+
+interface CharacterMedia {
+  node: {
+    idMal: number;
+    title: {
+      romaji: string;
+      english: string | null;
+      native: string | null;
+    };
+    coverImage: {
+      medium: string;
+    };
+  };
+  characterRole: string;
+}
+
+interface Character {
+  node: {
+    id: number;
+    name: {
+      full: string;
+      native: string;
+    };
+    image: {
+      medium: string;
+      large: string;
+    };
+    media: {
+      edges: CharacterMedia[];
+    };
+  };
+  role: string;
+  voiceActors: VoiceActor[];
+}
+
 export interface AnimeCharacter {
   node: {
     id: number;
@@ -115,9 +161,36 @@ export interface AnimeDetails {
         };
         image: {
           medium: string;
+          large: string;
+        };
+        media: {
+          edges: Array<{
+            node: {
+              id: number;
+              title: {
+                romaji: string;
+                english: string | null;
+                native: string | null;
+              };
+              coverImage: {
+                medium: string;
+              };
+            };
+            characterRole: string;
+          }>;
         };
       };
       role: string;
+      voiceActors: Array<{
+        id: number;
+        name: {
+          full: string;
+          native: string;
+        };
+        image: {
+          medium: string;
+        };
+      }>;
     }>;
   };
   nextAiringEpisode?: NextAiringEpisode | null;
@@ -142,6 +215,14 @@ export async function getAnimeDetails(malId: number) {
   const malData = await mal.getAnimeDetails(malId);
   if (!malData) return null;
 
+  // Try to get Shinden description
+  const shindenDesc = await getShindenDescription(malData.title.romaji);
+  
+  // Use Shinden description if available, otherwise use original MAL description
+  if (shindenDesc) {
+    malData.description = shindenDesc;
+  }
+
   // Get AniList data for additional fields
   const query = `
     query ($malId: Int) {
@@ -157,12 +238,18 @@ export async function getAnimeDetails(malId: number) {
   `;
 
   try {
-    const anilistData = await getAniListDetails(malId, query);
+    const [anilistData, charactersData] = await Promise.all([
+      getAniListDetails(malId, query),
+      getAnimeCharactersByName(malData.title.romaji)
+    ]);
     
+    const characters = charactersData?.Media?.characters?.edges || [];
+
     const combinedData = {
       ...malData,
       bannerImage: anilistData?.Media?.bannerImage || null,
       nextAiringEpisode: anilistData?.Media?.nextAiringEpisode || null,
+      characters: { edges: characters }
     };
 
     cache.set(cacheKey, {
@@ -179,37 +266,91 @@ export async function getAnimeDetails(malId: number) {
 }
 
 export async function getFeaturedAnime() {
-  try {
-    // Get featured anime from MAL
-    const malData = await mal.getFeaturedAnime();
-    if (!malData) return null;
-
-    // Get AniList banner image
-    const query = `
-      query ($malId: Int) {
-        Media(idMal: $malId, type: ANIME) {
+  const query = `
+    query {
+      Page(page: 1, perPage: 10) {
+        media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
+          idMal
+          id
+          title {
+            romaji
+            english
+            native
+          }
           bannerImage
+          coverImage {
+            large
+          }
+          description
+          genres
+          averageScore
+          nextAiringEpisode {
+            episode
+            timeUntilAiring
+          }
         }
       }
-    `;
-    
-    try {
-      const anilistData = await getAniListDetails(malData.id, query);
-      return {
-        ...malData,
-        bannerImage: anilistData?.Media?.bannerImage || malData.coverImage?.large,
-      };
-    } catch (error) {
-      console.error('Error getting AniList banner:', error);
-      return {
-        ...malData,
-        bannerImage: malData.coverImage?.large,
-      };
     }
+  `;
+
+  try {
+    // Get the base URL based on environment
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : 'http://localhost:3000';
+
+    const response = await fetch(`${baseUrl}/api/anilist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const trendingAnime = data.data?.Page?.media?.[0];
+
+    if (!trendingAnime) {
+      throw new Error('No trending anime found');
+    }
+
+    // Return the anime with MAL ID as the main ID
+    return {
+      id: trendingAnime.idMal,
+      title: trendingAnime.title,
+      bannerImage: trendingAnime.bannerImage,
+      coverImage: trendingAnime.coverImage,
+      description: trendingAnime.description,
+      genres: trendingAnime.genres,
+      averageScore: trendingAnime.averageScore,
+      nextAiringEpisode: trendingAnime.nextAiringEpisode,
+    };
   } catch (error) {
     console.error('Error getting featured anime:', error);
-    return null;
+    throw error;
   }
+}
+
+interface SeasonalAnime {
+  id: number;
+  title: {
+    romaji: string;
+    english: string | null;
+    native: string | null;
+  };
+  coverImage: {
+    large: string;
+  };
+  nextAiringEpisode?: {
+    episode: number;
+    timeUntilAiring: number;
+  } | null;
 }
 
 export async function getSeasonalAnime() {
@@ -218,7 +359,7 @@ export async function getSeasonalAnime() {
     
     // Get AniList data for each anime
     const enrichedData = await Promise.all(
-      data.map(async (anime) => {
+      data.map(async (anime: SeasonalAnime) => {
         try {
           const query = `
             query ($malId: Int) {
@@ -308,10 +449,43 @@ export interface AniListAnime {
   } | null;
 }
 
-export async function getAnimeByFilters(filters: BrowseFilters) {
-  const anilistQuery = `
-    query ($page: Int, $sort: [MediaSort], $genres: [String], $year: Int, $season: MediaSeason, $format: [MediaFormat], $status: MediaStatus) {
-      Page(page: $page, perPage: 20) {
+interface AniListBrowseAnime {
+  idMal: number;
+  title: {
+    romaji: string;
+    english: string | null;
+    native: string | null;
+  };
+  coverImage: {
+    large: string;
+  };
+  format: string;
+  episodes: number | null;
+  averageScore: number;
+  startDate: {
+    year: number | null;
+    month: number | null;
+    day: number | null;
+  };
+  season: string;
+  seasonYear: number;
+}
+
+export async function getAnimeByFilters(variables: {
+  page: string
+  sort: SortOption
+  genres?: string[]
+  excludedGenres?: string[]
+  tags?: string[]
+  excludedTags?: string[]
+  year?: number
+  season?: string
+  format?: string[]
+  status?: string
+}) {
+  const query = `
+    query ($page: Int, $sort: [MediaSort], $genres: [String], $excludedGenres: [String], $tags: [String], $excludedTags: [String], $year: Int, $season: MediaSeason, $format: [MediaFormat], $status: MediaStatus) {
+      Page(page: $page, perPage: 40) {
         pageInfo {
           total
           currentPage
@@ -319,8 +493,8 @@ export async function getAnimeByFilters(filters: BrowseFilters) {
           hasNextPage
           perPage
         }
-        media(sort: $sort, genre_in: $genres, seasonYear: $year, season: $season, 
-          format_in: $format, status: $status, type: ANIME, isAdult: false) {
+        media(sort: $sort, genre_in: $genres, genre_not_in: $excludedGenres, tag_in: $tags, tag_not_in: $excludedTags, 
+          seasonYear: $year, season: $season, format_in: $format, status: $status, type: ANIME, isAdult: false) {
           idMal
           title {
             romaji
@@ -329,16 +503,17 @@ export async function getAnimeByFilters(filters: BrowseFilters) {
           }
           coverImage {
             large
-            medium
           }
           format
           episodes
-          status
+          averageScore
           startDate {
             year
             month
             day
           }
+          season
+          seasonYear
         }
       }
     }
@@ -346,13 +521,20 @@ export async function getAnimeByFilters(filters: BrowseFilters) {
 
   try {
     const vars: Record<string, any> = {
-      page: parseInt(filters.page || '1', 10),
-      sort: filters.sort || "POPULARITY_DESC",
-      ...(filters.genres?.length && { genres: filters.genres }),
-      ...(filters.year && { year: filters.year }),
-      ...(filters.season && { season: filters.season.toUpperCase() }),
+      page: parseInt(variables.page, 10) || 1,
+      sort: variables.sort || "TRENDING_DESC",
     };
 
+    // Only add non-empty arrays to the variables
+    if (variables.genres?.length) vars.genres = variables.genres;
+    if (variables.excludedGenres?.length) vars.excludedGenres = variables.excludedGenres;
+    if (variables.tags?.length) vars.tags = variables.tags;
+    if (variables.excludedTags?.length) vars.excludedTags = variables.excludedTags;
+    if (variables.format?.length) vars.format = variables.format;
+    if (variables.year) vars.year = variables.year;
+    if (variables.season) vars.season = variables.season.toUpperCase();
+    if (variables.status) vars.status = variables.status;
+    
     // Get the base URL based on environment
     const baseUrl = typeof window !== 'undefined' 
       ? window.location.origin 
@@ -364,7 +546,7 @@ export async function getAnimeByFilters(filters: BrowseFilters) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query: anilistQuery,
+        query,
         variables: vars
       }),
     });
@@ -374,57 +556,20 @@ export async function getAnimeByFilters(filters: BrowseFilters) {
     }
 
     const data = await response.json();
-    const results = data.data?.Page?.media || [];
-    const pageInfo = data.data?.Page?.pageInfo;
+    const page = data.data?.Page;
 
-    // Get MAL ratings for each result
-    const enrichedResults = await Promise.all(
-      results.map(async (anime: AniListAnime) => {
-        if (!anime.idMal) return null;
+    if (page) {
+      // Transform the media array to use MAL IDs
+      return {
+        ...page,
+        media: page.media.map((anime: AniListBrowseAnime) => ({
+          ...anime,
+          id: anime.idMal // Replace AniList ID with MAL ID
+        }))
+      };
+    }
 
-        try {
-          const malData = await mal.getAnimeDetails(anime.idMal);
-          return {
-            id: anime.idMal,
-            title: {
-              romaji: anime.title.romaji,
-              english: anime.title.english,
-              native: anime.title.native,
-            },
-            coverImage: anime.coverImage,
-            format: anime.format,
-            episodes: anime.episodes,
-            status: anime.status,
-            startDate: anime.startDate,
-            averageScore: malData?.averageScore || null,
-          };
-        } catch (error) {
-          console.error(`Error fetching MAL data for anime ${anime.idMal}:`, error);
-          return {
-            id: anime.idMal,
-            title: {
-              romaji: anime.title.romaji,
-              english: anime.title.english,
-              native: anime.title.native,
-            },
-            coverImage: anime.coverImage,
-            format: anime.format,
-            episodes: anime.episodes,
-            status: anime.status,
-            startDate: anime.startDate,
-            averageScore: null,
-          };
-        }
-      })
-    );
-
-    return {
-      media: enrichedResults.filter(Boolean),
-      pageInfo: {
-        hasNextPage: pageInfo?.hasNextPage || false,
-        total: pageInfo?.total || enrichedResults.length,
-      },
-    };
+    return null;
   } catch (error) {
     console.error('Error fetching anime by filters:', error);
     throw error;

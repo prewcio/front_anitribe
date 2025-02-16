@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { getAnimeDetails } from "@/lib/api/anilist"
+import { getAnimeDetails, getAnimeEpisodeThumbnails } from "@/lib/api/anilist"
 import { getEpisodeData, getAnimeComments } from "@/lib/api/laravel"
 import { VideoPlayer } from "@/components/VideoPlayer/VideoPlayer"
 import { Button } from "@/components/ui/button"
@@ -25,15 +25,26 @@ async function WatchPage({ params, searchParams }: Props) {
   const episodeId = searchParams.episode ? Number.parseInt(searchParams.episode, 10) : 1
   const currentTab = searchParams.tab || "episodes"
 
-  const [animeData, episodeData, commentsData] = await Promise.all([
+  const [animeData, episodeData, commentsData, episodeThumbnails] = await Promise.all([
     getAnimeDetails(animeId),
     getEpisodeData(animeId, episodeId),
-    getAnimeComments(animeId)
+    getAnimeComments(animeId),
+    getAnimeEpisodeThumbnails(animeId)
   ])
+
+  if (!animeData) {
+    return <div>Anime not found</div>
+  }
+
+  // Enhance animeData with episode thumbnails and streaming episodes
+  const enhancedAnimeData = {
+    ...animeData,
+    episodeThumbnails: animeData.streamingEpisodes || episodeThumbnails
+  }
 
   return (
     <WatchPageClient 
-      anime={animeData}
+      anime={enhancedAnimeData}
       episode={episodeData}
       comments={commentsData}
       currentTab={currentTab}

@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import ErrorMessage from "@/components/ErrorMessage"
 import { formatDescription } from "@/lib/utils/formatDescription"
+import { translateWithCache } from "@/lib/utils/translate"
+import { cache } from "@/lib/api/cache"
 
 interface Props {
   params: { id: string }
@@ -14,6 +16,18 @@ interface Props {
 async function CharacterDetails({ id }: { id: number }) {
   try {
     const character = await getCharacterDetails(id)
+
+    // Format the already translated description
+    const formattedDescription = character.description 
+      ? await formatDescription(character.description)
+      : '';
+
+    // Cache character data
+    const cacheKey = `character:${id}`;
+    cache.set(cacheKey, {
+      data: character,
+      timestamp: Date.now(),
+    });
 
     const translateRole = (role: string) => {
       switch (role) {
@@ -47,7 +61,7 @@ async function CharacterDetails({ id }: { id: number }) {
               <article
                 className="prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg prose-a:text-primary hover:prose-a:opacity-80 max-w-none"
                 dangerouslySetInnerHTML={{
-                  __html: formatDescription(character.description),
+                  __html: formattedDescription,
                 }}
               />
             )}

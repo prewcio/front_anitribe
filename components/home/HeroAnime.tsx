@@ -8,15 +8,17 @@ import { Card } from "@/components/ui/card"
 import { Play, Plus } from "lucide-react"
 import { getFeaturedAnime } from "@/lib/api/hybrid"
 import { formatDescription } from "@/lib/utils/formatDescription"
+import { translateWithCache } from "@/lib/utils/translate"
+import { InteractiveTag } from "@/components/InteractiveTag"
 
 interface FeaturedAnime {
   id: number
   title: {
     romaji: string
-    english: string
-    native: string
+    english: string | null
+    native: string | null
   }
-  bannerImage: string
+  bannerImage: string | null
   coverImage: {
     large: string
   }
@@ -26,7 +28,7 @@ interface FeaturedAnime {
   nextAiringEpisode?: {
     episode: number
     timeUntilAiring: number
-  }
+  } | null
 }
 
 export function HeroAnime() {
@@ -34,6 +36,7 @@ export function HeroAnime() {
   const [featuredAnime, setFeaturedAnime] = useState<FeaturedAnime | null>(null)
   const [formattedDescription, setFormattedDescription] = useState<string>("")
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -43,9 +46,14 @@ export function HeroAnime() {
     async function fetchData() {
       try {
         const data = await getFeaturedAnime()
+        if (!data) {
+          throw new Error("No featured anime data received")
+        }
         setFeaturedAnime(data)
+        setError(null)
       } catch (error) {
         console.error("Error fetching featured anime:", error)
+        setError("Failed to load featured anime")
       } finally {
         setIsLoading(false)
       }
@@ -56,16 +64,38 @@ export function HeroAnime() {
   useEffect(() => {
     async function formatDesc() {
       if (featuredAnime?.description) {
-        const formatted = await formatDescription(featuredAnime.description)
-        setFormattedDescription(formatted)
+        try {
+          // First translate the description
+          const translatedDesc = await translateWithCache(featuredAnime.description)
+          // Then format the translated description
+          const formatted = await formatDescription(translatedDesc)
+          setFormattedDescription(formatted)
+        } catch (error) {
+          console.error("Error formatting description:", error)
+          // If translation fails, try to at least format the original description
+          try {
+            const formatted = await formatDescription(featuredAnime.description)
+            setFormattedDescription(formatted)
+          } catch {
+            setFormattedDescription(featuredAnime.description)
+          }
+        }
       }
     }
     formatDesc()
   }, [featuredAnime?.description])
 
-  if (!mounted || isLoading || !featuredAnime) {
+  if (!mounted || isLoading) {
     return (
       <div className="w-full h-[400px] md:h-[600px] bg-accent animate-pulse" />
+    )
+  }
+
+  if (error || !featuredAnime) {
+    return (
+      <div className="w-full h-[400px] md:h-[600px] bg-accent flex items-center justify-center">
+        <p className="text-muted-foreground">{error || "No featured anime available"}</p>
+      </div>
     )
   }
 
@@ -113,19 +143,16 @@ export function HeroAnime() {
                 <h1 className="text-2xl md:text-4xl font-bold break-words">
                   {featuredAnime.title.english || featuredAnime.title.romaji}
                 </h1>
-                <p className="text-lg md:text-xl text-muted-foreground mt-1 break-words">
-                  {featuredAnime.title.native}
-                </p>
+                {featuredAnime.title.native && (
+                  <p className="text-lg md:text-xl text-muted-foreground mt-1 break-words">
+                    {featuredAnime.title.native}
+                  </p>
+                )}
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {featuredAnime.genres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="px-2 py-1 rounded-full bg-accent text-xs md:text-sm"
-                  >
-                    {genre}
-                  </span>
+                {featuredAnime.genres.slice(0, 3).map((genre) => (
+                  <InteractiveTag key={genre} tag={genre} />
                 ))}
               </div>
               

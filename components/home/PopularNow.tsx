@@ -6,35 +6,37 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Star } from "lucide-react"
-import { getPopularAnime } from "@/lib/api/hybrid"
+import { getPopularAnimeWithMalIds } from "@/lib/api/anilist"
 
 interface PopularAnime {
   id: number
   title: {
     romaji: string
-    english: string
-    native: string
+    english: string | null
+    native: string | null
   }
   coverImage: {
     large: string
   }
   averageScore: number
   format: string
-  episodes: number
+  episodes: number | null
 }
 
 export function PopularNow() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [popularAnime, setPopularAnime] = useState<PopularAnime[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const data = await getPopularAnime()
+        const data = await getPopularAnimeWithMalIds()
         setPopularAnime(data)
       } catch (error) {
         console.error("Error fetching popular anime:", error)
+        setError("Failed to load popular anime")
       } finally {
         setIsLoading(false)
       }

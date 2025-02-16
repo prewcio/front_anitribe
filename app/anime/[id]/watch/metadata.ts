@@ -21,6 +21,14 @@ export async function generateMetadata(
     getEpisodeData(animeId, episodeId)
   ])
 
+  // Handle case where anime or episode data is missing
+  if (!anime?.title?.romaji || !episode?.number) {
+    return {
+      title: 'Oglądaj anime online | AniTribe',
+      description: 'Oglądaj anime online w najlepszej jakości na AniTribe',
+    }
+  }
+
   const title = `${anime.title.romaji} - Odcinek ${episode.number}`
   const description = `Oglądaj ${anime.title.romaji} odcinek ${episode.number} online w najlepszej jakości na AniTribe`
 
