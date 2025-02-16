@@ -13,7 +13,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command"
-import { searchAnime } from "@/lib/api/anilist"
+import { searchAnime } from "@/lib/api/hybrid"
 import { useDebounce } from "@/lib/hooks/useDebounce"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
@@ -111,7 +111,7 @@ export function SearchDialog() {
         <Search className="mr-2 h-4 w-4" />
         Szukaj anime...
       </Button>
-      <CommandDialog open={open} onOpenChange={setOpen} className="custom-scrollbar">
+      <CommandDialog open={open} onOpenChange={setOpen}>
         <Command shouldFilter={false}>
           <CommandInput placeholder="Wpisz tytuł anime..." value={query} onValueChange={setQuery} />
           <CommandList className="max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -171,7 +171,6 @@ export function SearchDialog() {
                               fill
                               sizes="48px"
                               className="object-cover rounded"
-                              style={{ imageRendering: "high-quality" }}
                             />
                           </div>
                           <div className="flex flex-col ml-3 overflow-hidden">

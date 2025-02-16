@@ -12,11 +12,7 @@ interface RelatedAnime {
   relationType: string
   node: {
     id: number
-    title: {
-      romaji: string
-      english: string
-      native: string
-    }
+    title: string
     coverImage: {
       large: string
     }
@@ -32,19 +28,27 @@ interface RelatedAnimeSectionProps {
 }
 
 const getRelationLabel = (type: string) => {
+  // Convert to uppercase and replace spaces/underscores with underscore for consistency
+  const normalizedType = type.toUpperCase().replace(/[\s-]/g, '_')
+  
   const labels: Record<string, string> = {
-    PREQUEL: "Poprzednia Seria",
-    SEQUEL: "Następna Seria",
+    PREQUEL: "Poprzednia część",
+    SEQUEL: "Następna część",
     SPIN_OFF: "Spin-off",
-    SIDE_STORY: "Historia Poboczna",
-    PARENT: "Seria Główna",
+    SIDE_STORY: "Historia poboczna",
+    PARENT_STORY: "Seria główna",
+    PARENT: "Seria główna",
     ADAPTATION: "Adaptacja",
-    ALTERNATIVE: "Alternatywna Historia",
-    CHARACTER: "Historia Postaci",
+    ALTERNATIVE: "Alternatywna wersja",
+    ALTERNATIVE_SETTING: "Alternatywna wersja",
+    ALTERNATIVE_VERSION: "Alternatywna wersja",
+    CHARACTER: "Historia postaci",
     SUMMARY: "Podsumowanie",
+    FULL_STORY: "Pełna historia",
     OTHER: "Powiązane"
   }
-  return labels[type] || type
+  
+  return labels[normalizedType] || type
 }
 
 export default function RelatedAnimeSection({ relatedAnime }: RelatedAnimeSectionProps) {
@@ -101,20 +105,20 @@ export default function RelatedAnimeSection({ relatedAnime }: RelatedAnimeSectio
         >
           {relatedAnime.map((anime) => (
             <Link href={`/anime/${anime.node.id}`} key={anime.node.id}>
-              <Card className="overflow-hidden h-full w-[160px] flex-none">
+              <Card className="overflow-hidden h-full w-[240px] flex-none">
                 <div className="aspect-[2/3] relative">
                   <Image
                     src={anime.node.coverImage.large}
-                    alt={anime.node.title.english || anime.node.title.romaji}
+                    alt={anime.node.title}
                     fill
                     className="object-cover"
                   />
                 </div>
-                <div className="p-2 flex flex-col justify-between h-[72px]">
-                  <h3 className="font-medium text-sm line-clamp-2">
-                    {anime.node.title.english || anime.node.title.romaji}
+                <div className="p-3 flex flex-col justify-between">
+                  <h3 className="font-medium line-clamp-2">
+                    {anime.node.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {getRelationLabel(anime.relationType)}
                   </p>
                 </div>

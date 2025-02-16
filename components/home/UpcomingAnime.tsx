@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react"
-import { getUpcomingAnime } from "@/lib/api/anilist"
+import { getUpcomingAnime } from "@/lib/api/hybrid"
 
 interface UpcomingAnime {
   id: number

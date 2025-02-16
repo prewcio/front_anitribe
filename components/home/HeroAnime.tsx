@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Play, Plus } from "lucide-react"
-import { getFeaturedAnime } from "@/lib/api/anilist"
+import { getFeaturedAnime } from "@/lib/api/hybrid"
 import { formatDescription } from "@/lib/utils/formatDescription"
 
 interface FeaturedAnime {

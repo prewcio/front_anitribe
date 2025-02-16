@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { getAnimeDetails } from "@/lib/api/anilist"
+import { getAnimeDetails } from "@/lib/api/hybrid"
 import { getAnimeComments, rateAnime } from "@/lib/api/laravel"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Play, Plus, Star, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
 import RelatedAnimeSection from "@/components/RelatedAnimeSection"
 import { Metadata, ResolvingMetadata } from "next"
+import { notFound } from "next/navigation"
 
 interface RelatedAnime {
   id: number
@@ -38,19 +39,36 @@ interface AnimeRatingProps {
 }
 
 interface AnimeRelation {
-  id: number
-  relationType: string
+  relationType: string;
   node: {
-    id: number
+    id: number;
     title: {
-      userPreferred: string
-    }
+      romaji: string;
+    };
     coverImage: {
-      large: string
-    }
-    format: string
-    status: string
-  }
+      large: string;
+      medium: string;
+    };
+  };
+}
+
+interface AnimeRecommendation {
+  mediaRecommendation: {
+    id: number;
+    title: {
+      romaji: string;
+    };
+    coverImage: {
+      large: string;
+      medium: string;
+    };
+    numRecommendations: number;
+  };
+}
+
+interface Studio {
+  id: number;
+  name: string;
 }
 
 interface Props {
@@ -91,10 +109,14 @@ const TYPE_TRANSLATIONS: Record<string, string> = {
 
 // Add season translations
 const SEASON_TRANSLATIONS: Record<string, string> = {
-  FALL: "JESIEŃ",
-  SPRING: "WIOSNA",
-  WINTER: "ZIMA",
-  SUMMER: "LATO"
+  SPRING: "🌸 Wiosna",
+  SUMMER: "☀️ Lato",
+  FALL: "🍁 Jesień",
+  WINTER: "❄️ Zima",
+  spring: "🌸 Wiosna",
+  summer: "☀️ Lato",
+  fall: "🍁 Jesień",
+  winter: "❄️ Zima"
 }
 
 const STATUS_TRANSLATIONS_PROGRESS: Record<string, string> = {
@@ -121,13 +143,25 @@ async function AnimeDetails({ params, searchParams }: Props) {
     getAnimeComments(id),
   ])
 
+  if (!anime || !anime.title) {
+    notFound()
+  }
+
   // Format description after getting the data
   const formattedDescription = await formatDescription(anime.description)
 
   // Filter related anime once we have the data
-  const relatedAnime = anime.relations?.edges?.filter((edge: AnimeRelation) => 
-    edge.node.format && ["TV", "MOVIE", "OVA", "ONA", "SPECIAL", "TV_SHORT"].includes(edge.node.format)
-  ) || []
+  const relatedAnime = anime.relations?.map((relation: AnimeRelation) => ({
+    id: relation.node.id,
+    relationType: relation.relationType,
+    node: {
+      id: relation.node.id,
+      title: relation.node.title.romaji,
+      coverImage: {
+        large: relation.node.coverImage.large
+      }
+    }
+  })) || []
 
   // Only fetch episode data if needed
   let watchEpisode = null
@@ -150,16 +184,16 @@ async function AnimeDetails({ params, searchParams }: Props) {
 
   const getRelationLabel = (type: string) => {
     const labels: Record<string, string> = {
-      PREQUEL: "Poprzednia Seria",
-      SEQUEL: "Następna Seria",
-      SPIN_OFF: "Spin-off",
-      SIDE_STORY: "Historia Poboczna",
-      PARENT: "Seria Główna",
-      ADAPTATION: "Adaptacja",
-      ALTERNATIVE: "Alternatywna Historia",
-      CHARACTER: "Historia Postaci",
-      SUMMARY: "Podsumowanie",
-      OTHER: "Powiązane"
+      Prequel: "Poprzednia Seria",
+      Sequel: "Następna Seria",
+      "Side story": "Historia Poboczna",
+      "Parent story": "Seria Główna",
+      Adaptation: "Adaptacja",
+      Alternative: "Alternatywna Historia",
+      "Character": "Historia Postaci",
+      Summary: "Podsumowanie",
+      Other: "Powiązane",
+      "Spin-off": "Spin-off"
     }
     return labels[type] || type
   }
@@ -301,26 +335,26 @@ async function AnimeDetails({ params, searchParams }: Props) {
                 </div>
                 <div>
                   <p className="font-semibold">Czas trwania:</p>
-                  <p>{anime.duration ? `${anime.duration} min` : "? min"}</p>
+                  <p>{anime.duration ? `${anime.duration} min` : "Nieznane"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Data rozpoczęcia:</p>
-                  <p>{formatDate(anime.startDate)}</p>
+                  <p>{anime.startDate ? formatDate(anime.startDate) : "Nieznana"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Data zakończenia:</p>
-                  <p>{anime.endDate.year ? formatDate(anime.endDate) : "W trakcie emisji"}</p>
+                  <p>{anime.endDate ? (anime.endDate.year ? formatDate(anime.endDate) : "W trakcie emisji") : "Nieznana"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Sezon:</p>
-                  <p>{anime.season ? `${SEASON_TRANSLATIONS[anime.season]} ${anime.seasonYear}` : "Nieznane"}</p>
+                  <p>{anime.season && anime.seasonYear ? `${SEASON_TRANSLATIONS[anime.season]} ${anime.seasonYear}` : "Nieznane"}</p>
                 </div>
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-2">Studia</h3>
                 <div className="flex flex-wrap gap-2">
-                  {anime.studios.nodes.map((studio: { name: string, id: number }) => (
-                    <StudioButton key={studio.name} studio={studio.name} id={studio.id} />
+                  {anime.studios?.map((studio: Studio) => (
+                    <StudioButton key={studio.id} studio={studio.name} id={studio.id} />
                   ))}
                 </div>
               </div>
@@ -332,14 +366,12 @@ async function AnimeDetails({ params, searchParams }: Props) {
             <RelatedAnimeSection relatedAnime={relatedAnime} />
           )}
           
-          {anime.characters?.edges?.length > 0 && (
-            <Characters characters={anime.characters.edges} />
+          {anime.characters?.length > 0 && (
+            <Characters characters={anime.characters} />
           )}
 
-          {anime.recommendations?.nodes?.length > 0 && (
-            <SimilarAnime
-              recommendations={anime.recommendations.nodes.map((node: any) => node.mediaRecommendation)}
-            />
+          {anime.recommendations?.length > 0 && (
+            <SimilarAnime recommendations={anime.recommendations} />
           )}
         </div>
         <div className="mt-8">
@@ -365,9 +397,14 @@ export async function generateMetadata(
   const id = Number.parseInt(params.id, 10)
   const anime = await getAnimeDetails(id)
 
-  const title = anime.title.romaji || anime.title.english
-  const description = anime.description?.replace(/<[^>]*>/g, '').slice(0, 160) + '...' || 
-    'Oglądaj anime online w najlepszej jakości na AniTribe'
+  if (!anime || !anime.title) {
+    notFound()
+  }
+
+  const title = anime.title.romaji || anime.title.english || 'Nieznany tytuł'
+  const description = anime.description 
+    ? anime.description.replace(/<[^>]*>/g, '').slice(0, 160) + '...'
+    : 'Oglądaj anime online w najlepszej jakości na AniTribe'
 
   return {
     title: title,

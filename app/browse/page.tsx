@@ -2,20 +2,104 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { getAnimeByFilters, type SortOption } from "@/lib/api/anilist"
+import { getAnimeByFilters, type BrowseFilters as MALBrowseFilters } from "@/lib/api/mal"
 import AnimeGrid from "@/components/AnimeGrid"
-import BrowseFilters from "./BrowseFilters"
+import BrowseFilterPanel, { type FiltersState } from "./BrowseFilters"
 import { SortingOptions } from "./SortingOptions"
 import LoadingGrid from "@/components/LoadingGrid"
 import { InfiniteScroll } from "@/components/InfiniteScroll"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import type { FiltersState } from "./BrowseFilters"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { translateTagToPolish } from "@/lib/utils/tagTranslation"
+import { Spinner } from "@/components/ui/spinner"
+
+type SortOption = 'POPULARITY_DESC' | 'SCORE_DESC' | 'START_DATE_DESC';
 
 export default function BrowsePage() {
+  const [anime, setAnime] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageInfo, setPageInfo] = useState<{ hasNextPage: boolean; total: number }>()
+  const [currentSort, setCurrentSort] = useState<SortOption>('POPULARITY_DESC')
+  const [currentFilters, setCurrentFilters] = useState<FiltersState>({
+    countryOfOrigin: 'JP',
+    sourceMaterial: 'ALL',
+    episodes: [0, 100],
+    duration: [0, 180],
+    genres: [],
+    excludedGenres: [],
+  })
+
+  const fetchAnime = useCallback(async (filters: MALBrowseFilters) => {
+    setIsLoading(true)
+    try {
+      const data = await getAnimeByFilters(filters)
+      return data
+    } catch (error) {
+      console.error("Error fetching anime:", error)
+      setError("Failed to load anime. Please try again later.")
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const loadAnime = useCallback(
+    async (page: number, sort: SortOption, filters: FiltersState) => {
+      const result = await fetchAnime({
+        page: page.toString(),
+        sort,
+        genres: filters.genres,
+        excludedGenres: filters.excludedGenres,
+        year: filters.year,
+        season: filters.season,
+      })
+      if (result) {
+        setAnime(result.media)
+        setPageInfo(result.pageInfo)
+        setCurrentPage(page)
+      }
+      setIsInitialLoading(false)
+    },
+    [fetchAnime]
+  )
+
+  useEffect(() => {
+    loadAnime(1, currentSort, currentFilters)
+  }, [currentSort, currentFilters, loadAnime])
+
+  const loadMore = useCallback(async () => {
+    if (isLoading || !pageInfo?.hasNextPage) return
+
+    const result = await fetchAnime({
+      page: (currentPage + 1).toString(),
+      sort: currentSort,
+      genres: currentFilters.genres,
+      excludedGenres: currentFilters.excludedGenres,
+      year: currentFilters.year,
+      season: currentFilters.season,
+    })
+    if (result) {
+      setAnime((prev) => [...prev, ...result.media])
+      setPageInfo(result.pageInfo)
+      setCurrentPage(currentPage + 1)
+    }
+  }, [currentPage, currentSort, currentFilters, fetchAnime, isLoading, pageInfo])
+
+  const formatSeason = (season: string) => {
+    const seasons: Record<string, string> = {
+      WINTER: "Zima",
+      SPRING: "Wiosna",
+      SUMMER: "Lato",
+      FALL: "Jesień"
+    }
+    return seasons[season] || season
+  }
+
   return (
     <Suspense fallback={<LoadingGrid />}>
       <BrowseContent />
@@ -47,22 +131,14 @@ function BrowseContent() {
     }
   })
 
-  const fetchAnime = useCallback(async (page: number, sort: SortOption, filters: FiltersState) => {
+  const fetchAnime = useCallback(async (filters: MALBrowseFilters) => {
     setIsLoading(true)
-    setError(null)
     try {
-      const { media, pageInfo } = await getAnimeByFilters({
-        page: page.toString(),
-        sort,
-        genres: filters.genres,
-        excludedGenres: filters.excludedGenres,
-        year: filters.year,
-        season: filters.season,
-      })
-      return { media, pageInfo }
+      const data = await getAnimeByFilters(filters)
+      return data
     } catch (error) {
-      console.error("Failed to fetch anime:", error)
-      setError(error instanceof Error ? error.message : "An unknown error occurred")
+      console.error("Error fetching anime:", error)
+      setError("Failed to load anime. Please try again later.")
       return null
     } finally {
       setIsLoading(false)
@@ -71,7 +147,14 @@ function BrowseContent() {
 
   const loadAnime = useCallback(
     async (page: number, sort: SortOption, filters: FiltersState) => {
-      const result = await fetchAnime(page, sort, filters)
+      const result = await fetchAnime({
+        page: page.toString(),
+        sort,
+        genres: filters.genres,
+        excludedGenres: filters.excludedGenres,
+        year: filters.year,
+        season: filters.season,
+      })
       if (result) {
         setAnime(result.media)
         setPageInfo(result.pageInfo)
@@ -79,23 +162,30 @@ function BrowseContent() {
       }
       setIsInitialLoading(false)
     },
-    [fetchAnime],
+    [fetchAnime]
   )
 
   const loadMore = useCallback(async () => {
     if (isLoading || !pageInfo?.hasNextPage) return
 
-    const result = await fetchAnime(currentPage + 1, currentSort, currentFilters)
+    const result = await fetchAnime({
+      page: (currentPage + 1).toString(),
+      sort: currentSort,
+      genres: currentFilters.genres,
+      excludedGenres: currentFilters.excludedGenres,
+      year: currentFilters.year,
+      season: currentFilters.season,
+    })
     if (result) {
       setAnime((prev) => [...prev, ...result.media])
       setPageInfo(result.pageInfo)
-      setCurrentPage((prev) => prev + 1)
+      setCurrentPage(currentPage + 1)
     }
-  }, [isLoading, pageInfo, currentPage, currentSort, currentFilters, fetchAnime])
+  }, [currentPage, currentSort, currentFilters, fetchAnime, isLoading, pageInfo])
 
   useEffect(() => {
     loadAnime(1, currentSort, currentFilters)
-  }, [loadAnime, currentSort, currentFilters])
+  }, [currentSort, currentFilters, loadAnime])
 
   const formatSeason = (season: string) => {
     const seasons: Record<string, string> = {
@@ -107,108 +197,64 @@ function BrowseContent() {
     return seasons[season] || season
   }
 
+  const handleFiltersChange = (newFilters: FiltersState) => {
+    setCurrentFilters(newFilters)
+  }
+
+  const handleSortChange = (value: string) => {
+    setCurrentSort(value as SortOption)
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row gap-6">
-        <aside className="w-full md:w-64 lg:w-80">
-          <BrowseFilters currentFilters={currentFilters} onFiltersApply={setCurrentFilters} />
-        </aside>
-        <main className="flex-1">
-          <div className="mb-4 flex flex-col items-start gap-2">
-            <div className="w-full flex justify-between items-center">
-              <h1 className="text-2xl font-bold">
-                {currentFilters.season && currentFilters.year
-                  ? `Sezon ${formatSeason(currentFilters.season)} ${currentFilters.year}`
-                  : "Przeglądaj Anime"}
-              </h1>
-              <Select value={currentSort} onValueChange={(value) => setCurrentSort(value as SortOption)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sortuj" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TRENDING_DESC">Popularne</SelectItem>
-                  <SelectItem value="POPULARITY_DESC">Najpopularniejsze</SelectItem>
-                  <SelectItem value="SCORE_DESC">Najwyżej oceniane</SelectItem>
-                  <SelectItem value="START_DATE_DESC">Najnowsze</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {currentFilters.genres.map((genre) => (
-                <Button
-                  key={genre}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const newFilters = { ...currentFilters }
-                    newFilters.genres = newFilters.genres.filter(g => g !== genre)
-                    setCurrentFilters(newFilters)
-                  }}
-                  className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
-                >
-                  {translateTagToPolish(genre)} ×
-                </Button>
-              ))}
-              {currentFilters.excludedGenres.map((genre) => (
-                <Button
-                  key={genre}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const newFilters = { ...currentFilters }
-                    newFilters.excludedGenres = newFilters.excludedGenres.filter(g => g !== genre)
-                    setCurrentFilters(newFilters)
-                  }}
-                  className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
-                >
-                  Wykluczono: {translateTagToPolish(genre)} ×
-                </Button>
-              ))}
-              {currentFilters.season && currentFilters.year && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const newFilters = { ...currentFilters }
-                    newFilters.season = undefined
-                    newFilters.year = undefined
-                    setCurrentFilters(newFilters)
-                  }}
-                  className="text-purple-600 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2"
-                >
-                  Sezon: {formatSeason(currentFilters.season)} {currentFilters.year} ×
-                </Button>
-              )}
-            </div>
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-3xl font-bold">Browse Anime</h1>
+          <div className="flex flex-wrap gap-4">
+            <BrowseFilterPanel
+              currentFilters={currentFilters}
+              onFiltersApply={handleFiltersChange}
+            />
+            <Select value={currentSort} onValueChange={handleSortChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sortuj" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TRENDING_DESC">Popularne</SelectItem>
+                <SelectItem value="POPULARITY_DESC">Najpopularniejsze</SelectItem>
+                <SelectItem value="SCORE_DESC">Najwyżej oceniane</SelectItem>
+                <SelectItem value="START_DATE_DESC">Najnowsze</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          {error ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Błąd</AlertTitle>
-              <AlertDescription>{error || "Wystąpił nieznany błąd"}</AlertDescription>
-            </Alert>
-          ) : isInitialLoading ? (
-            <LoadingGrid />
-          ) : (
-            <>
-              {anime.length > 0 ? (
-                <AnimeGrid items={anime} />
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Nie znaleziono żadnych anime spełniających kryteria.</p>
-                </div>
-              )}
-              {isLoading && <LoadingGrid />}
-              {pageInfo?.hasNextPage && anime.length > 0 && (
-                <InfiniteScroll 
-                  onLoadMore={loadMore} 
-                  hasMore={pageInfo.hasNextPage}
-                  rootMargin="10px"
-                />
-              )}
-            </>
-          )}
-        </main>
+        </div>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Błąd</AlertTitle>
+            <AlertDescription>{error || "Wystąpił nieznany błąd"}</AlertDescription>
+          </Alert>
+        ) : isInitialLoading ? (
+          <LoadingGrid />
+        ) : (
+          <>
+            {anime.length > 0 ? (
+              <AnimeGrid items={anime} />
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nie znaleziono żadnych anime spełniających kryteria.</p>
+              </div>
+            )}
+            {isLoading && <LoadingGrid />}
+            {pageInfo?.hasNextPage && anime.length > 0 && (
+              <InfiniteScroll 
+                onLoadMore={loadMore} 
+                hasMore={pageInfo.hasNextPage}
+                rootMargin="10px"
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   )

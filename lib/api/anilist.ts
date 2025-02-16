@@ -84,104 +84,11 @@ export async function searchAnime(search: string) {
   }
 }
 
-export async function getAnimeDetails(id: number) {
-  // Check cache first
-  const cacheKey = `anime:${id}`;
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.data;
-  }
-
-  const query = `
-    query ($id: Int!) {
-      Media(id: $id, type: ANIME) {
+export async function getAnimeDetails(malId: number, customQuery?: string) {
+  const query = customQuery || `
+    query ($malId: Int) {
+      Media(idMal: $malId, type: ANIME) {
         id
-        title {
-          romaji
-          english
-          native
-        }
-        description
-        coverImage {
-          large
-        }
-        bannerImage
-        format
-        episodes
-        duration
-        status
-        startDate {
-          year
-          month
-          day
-        }
-        endDate {
-          year
-          month
-          day
-        }
-        season
-        seasonYear
-        averageScore
-        genres
-        tags {
-          name
-          description
-        }
-        studios {
-          nodes {
-            id
-            name
-          }
-        }
-        characters {
-          edges {
-            node {
-              id
-              name {
-                full
-              }
-              image {
-                large
-              }
-            }
-            role
-          }
-        }
-        relations {
-          edges {
-            id
-            relationType
-            node {
-              id
-              title {
-                romaji
-                english
-                native
-              }
-              format
-              status
-              coverImage {
-                large
-              }
-            }
-          }
-        }
-        recommendations {
-          nodes {
-            mediaRecommendation {
-              id
-              title {
-                romaji
-                english
-                native
-              }
-              coverImage {
-                large
-              }
-            }
-          }
-        }
         nextAiringEpisode {
           episode
           timeUntilAiring
@@ -190,19 +97,29 @@ export async function getAnimeDetails(id: number) {
     }
   `;
 
-  try {
-    const data = await fetchAniList(query, { id });
-    const result = data.Media;
+  const variables = { malId };
 
-    // Store in cache
-    cache.set(cacheKey, {
-      data: result,
-      timestamp: Date.now()
+  try {
+    const response = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
     });
 
-    return result;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data;
   } catch (error) {
-    console.error("Error fetching anime details:", error);
+    console.error('Error fetching from AniList:', error);
     throw error;
   }
 }

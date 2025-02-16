@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Star } from "lucide-react"
-import { getPopularAnime } from "@/lib/api/anilist"
+import { getPopularAnime } from "@/lib/api/hybrid"
 
 interface PopularAnime {
   id: number
@@ -134,7 +134,8 @@ export function PopularNow() {
                     {anime.title.english || anime.title.romaji}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {formatType(anime.format)} • {anime.episodes} odcinków
+                    {formatType(anime.format)}
+                    {anime.episodes ? ` • ${anime.episodes} odcinków` : ''}
                   </p>
                 </div>
               </Card>

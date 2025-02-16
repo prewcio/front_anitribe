@@ -1,4 +1,4 @@
-import { getAnimeDetails } from "../api/anilist"
+import { getAnimeDetails } from "../api/hybrid"
 
 export interface CombinedAnimeData {
   id: number

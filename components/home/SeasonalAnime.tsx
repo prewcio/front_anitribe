@@ -6,21 +6,22 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Star } from "lucide-react"
-import { getSeasonalAnime, getCurrentSeason } from "@/lib/api/anilist"
+import { getSeasonalAnime } from "@/lib/api/hybrid"
 
 interface SeasonalAnime {
   id: number
   title: {
     romaji: string
-    english: string
-    native: string
+    english: string | null
+    native: string | null
   }
   coverImage: {
-    large: string
+    large: string | null
+    medium: string | null
   }
-  averageScore: number
+  averageScore: number | null
   format: string
-  episodes: number
+  episodes: number | null
   nextAiringEpisode?: {
     episode: number
     timeUntilAiring: number
@@ -37,14 +38,17 @@ export function SeasonalAnime() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
         const data = await getSeasonalAnime()
         setSeasonData(data)
+        setError(null)
       } catch (error) {
         console.error("Error fetching seasonal anime:", error)
+        setError("Failed to load seasonal anime")
       } finally {
         setIsLoading(false)
       }
@@ -102,7 +106,7 @@ export function SeasonalAnime() {
     return seasons[season] || season
   }
 
-  if (isLoading || !seasonData) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -118,6 +122,18 @@ export function SeasonalAnime() {
               </div>
             </Card>
           ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !seasonData || !seasonData.media) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-destructive">
+            {error || "Failed to load seasonal anime"}
+          </h2>
         </div>
       </div>
     )
@@ -148,12 +164,14 @@ export function SeasonalAnime() {
             >
               <Card className="overflow-hidden w-[240px]">
                 <div className="aspect-[2/3] relative">
-                  <Image
-                    src={anime.coverImage.large}
-                    alt={anime.title.english || anime.title.romaji}
-                    fill
-                    className="object-cover"
-                  />
+                  {anime.coverImage.large && (
+                    <Image
+                      src={anime.coverImage.large}
+                      alt={anime.title.english || anime.title.romaji}
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                   {anime.averageScore && (
                     <div className="absolute top-2 right-2 bg-background/80 px-2 py-1 rounded-full text-sm font-medium flex items-center gap-1">
                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
@@ -166,7 +184,8 @@ export function SeasonalAnime() {
                     {anime.title.english || anime.title.romaji}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {formatType(anime.format)} • {anime.episodes} odcinków
+                    {formatType(anime.format)}
+                    {anime.episodes && ` • ${anime.episodes} odcinków`}
                   </p>
                   {anime.nextAiringEpisode && (
                     <p className="text-sm text-muted-foreground">
