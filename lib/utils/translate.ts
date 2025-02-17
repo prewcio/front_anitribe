@@ -1,98 +1,86 @@
-import { translate } from '@vitalets/google-translate-api';
+// Cache for translations to avoid unnecessary API calls
+const translationCache = new Map<string, { text: string; timestamp: number }>()
+const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
 // Helper function to extract text from HTML
 function extractTextFromHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '||SPLIT||')
-             .split('||SPLIT||')
-             .map(part => part.trim())
-             .filter(Boolean)
-             .join(' ');
+  return html.replace(/<[^>]*>/g, '')
 }
 
 // Helper function to restore HTML tags
 function restoreHtmlTags(originalHtml: string, translatedText: string): string {
-  const htmlParts = originalHtml.split(/(<[^>]*>)/g);
-  const textParts = translatedText.split(/\s+/);
-  let textIndex = 0;
+  const tags: string[] = []
+  const cleanHtml = originalHtml.replace(/<[^>]*>/g, (tag) => {
+    tags.push(tag)
+    return '|TAG|'
+  })
+
+  const translatedParts = translatedText.split('|TAG|')
+  let result = ''
   
-  return htmlParts.map(part => {
-    if (part.startsWith('<')) {
-      return part; // Return HTML tag as is
-    } else if (part.trim()) {
-      return textParts[textIndex++] || part;
+  for (let i = 0; i < translatedParts.length; i++) {
+    result += translatedParts[i]
+    if (i < tags.length) {
+      result += tags[i]
     }
-    return part;
-  }).join('');
+  }
+
+  return result
 }
 
-export async function translateToPolish(text: string): Promise<string> {
-  if (!text) return '';
-  
+export async function translateWithCache(text: string, from: string = 'en', to: string = 'pl'): Promise<string> {
+  if (!text) return ''
+
+  // Generate cache key
+  const cacheKey = `${from}:${to}:${text}`
+
+  // Check cache
+  const cached = translationCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.text
+  }
+
   try {
-    // Check if text contains HTML
-    const hasHtml = /<[^>]*>/g.test(text);
-    
-    if (hasHtml) {
-      // Extract text from HTML
-      const plainText = extractTextFromHtml(text);
-      // Translate plain text to Polish
-      const result = await translate(plainText, { 
-        to: 'pl',
-        from: 'en',
-        host: 'translate.google.com'
-      });
-      // Restore HTML structure
-      return restoreHtmlTags(text, result.text);
-    } else {
-      // Regular translation to Polish
-      const result = await translate(text, { 
-        to: 'pl',
-        from: 'en',
-        host: 'translate.google.com'
-      });
-      return result.text;
+    // Extract text from HTML
+    const plainText = extractTextFromHtml(text)
+
+    // Get the base URL based on environment
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : 'http://localhost:3000'
+
+    // Call our translation API
+    const response = await fetch(`${baseUrl}/api/translate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: plainText,
+        from,
+        to,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Translation failed')
     }
-  } catch (error) {
-    console.error('Translation error:', error);
-    return text; // Return original text if translation fails
-  }
-}
 
-// Cache for translations to avoid unnecessary API calls
-const translationCache = new Map<string, string>();
+    const { translatedText } = await response.json()
 
-export async function translateWithCache(text: string): Promise<string> {
-  if (!text) return '';
-  
-  // Check cache first
-  const cached = translationCache.get(text);
-  if (cached) {
-    console.log('Translation cache hit:', {
-      originalText: text.slice(0, 50) + '...',
-      translatedText: cached.slice(0, 50) + '...',
-      originalLength: text.length,
-      translatedLength: cached.length,
-    });
-    return cached;
-  }
-  
-  try {
-    console.log('Starting translation:', {
-      originalText: text.slice(0, 50) + '...',
-      length: text.length,
-    });
-    const translated = await translateToPolish(text);
-    console.log('Translation completed:', {
-      originalText: text.slice(0, 50) + '...',
-      translatedText: translated.slice(0, 50) + '...',
-      originalLength: text.length,
-      translatedLength: translated.length,
-    });
-    translationCache.set(text, translated);
-    return translated;
+    // Restore HTML tags
+    const finalText = restoreHtmlTags(text, translatedText)
+
+    // Cache the result
+    translationCache.set(cacheKey, {
+      text: finalText,
+      timestamp: Date.now(),
+    })
+
+    return finalText
   } catch (error) {
-    console.error('Translation error:', error);
-    return text;
+    console.error('Translation error:', error)
+    return text // Return original text on error
   }
 }
 

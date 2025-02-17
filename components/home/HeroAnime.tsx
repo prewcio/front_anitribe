@@ -65,20 +65,12 @@ export function HeroAnime() {
     async function formatDesc() {
       if (featuredAnime?.description) {
         try {
-          // First translate the description
-          const translatedDesc = await translateWithCache(featuredAnime.description)
-          // Then format the translated description
-          const formatted = await formatDescription(translatedDesc)
+          // Format the description without translation
+          const formatted = await formatDescription(featuredAnime.description)
           setFormattedDescription(formatted)
         } catch (error) {
           console.error("Error formatting description:", error)
-          // If translation fails, try to at least format the original description
-          try {
-            const formatted = await formatDescription(featuredAnime.description)
-            setFormattedDescription(formatted)
-          } catch {
-            setFormattedDescription(featuredAnime.description)
-          }
+          setFormattedDescription(featuredAnime.description)
         }
       }
     }

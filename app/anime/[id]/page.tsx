@@ -148,9 +148,8 @@ async function AnimeDetails({ params, searchParams }: Props) {
     notFound()
   }
 
-  // Translate and format description
-  const translatedDescription = await translateWithCache(anime.description)
-  const formattedDescription = await formatDescription(translatedDescription)
+  // Format description without translation
+  const formattedDescription = await formatDescription(anime.description)
 
   // Filter related anime once we have the data
   const relatedAnime = anime.relations?.map((relation: AnimeRelation) => ({

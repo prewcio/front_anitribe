@@ -65,30 +65,110 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId, qu
   const [currentTheme, setCurrentTheme] = useState<PlayerTheme>(playerThemes[0])
   const [isLoading, setIsLoading] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const maxRetries = 3
 
   // Fetch video URL on mount or when src changes
   useEffect(() => {
-    const service = getVideoService(src)
-    if (service) {
+    const fetchVideoSource = async () => {
+      if (!src) return;
+      
       setIsLoading(true)
       setError(null)
-      fetchVideoUrl(src, service)
-        .then(url => {
-          setVideoUrl(url)
-          setError(null)
+      
+      try {
+        console.log('Fetching video URL for:', src)
+        const service = getVideoService(src)
+        console.log('Detected video service:', service)
+        
+        const response = await fetch('/api/video', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            url: src,
+            service: service || 'unknown'
+          }),
+          credentials: 'same-origin'
         })
-        .catch(err => {
-          console.error('Error loading video:', err)
-          setError("Unable to load video. The source might be unavailable or restricted.")
-        })
-        .finally(() => {
-          setIsLoading(false)
-        })
-    } else {
-      // If no service match, use the original URL
-      setVideoUrl(src)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log('Video URL response:', data)
+        
+        if (data.url) {
+          // Validate the URL
+          try {
+            new URL(data.url)
+            setVideoUrl(data.url)
+            setError(null)
+            setRetryCount(0) // Reset retry count on success
+          } catch (e) {
+            throw new Error('Invalid video URL received from server')
+          }
+        } else {
+          throw new Error('No video URL in response')
+        }
+      } catch (err) {
+        console.error('Error fetching video URL:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        setError(`Unable to load video: ${errorMessage}. ${retryCount < maxRetries ? 'Retrying...' : 'Max retries reached.'}`)
+        
+        // Implement retry logic with exponential backoff
+        if (retryCount < maxRetries) {
+          console.log(`Retrying video URL fetch (${retryCount + 1}/${maxRetries})...`)
+          setRetryCount(prev => prev + 1)
+          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000) // Max 10 seconds
+          setTimeout(() => {
+            fetchVideoSource()
+          }, backoffDelay)
+        }
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [src])
+
+    fetchVideoSource()
+  }, [src, retryCount, maxRetries])
+
+  // Add error handling for video element
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleVideoError = (e: Event) => {
+      const mediaError = (e.target as HTMLVideoElement).error
+      let errorMessage = 'An error occurred while playing the video.'
+      
+      if (mediaError) {
+        switch (mediaError.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMessage = 'Video playback was aborted.'
+            break
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMessage = 'A network error occurred while loading the video.'
+            break
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMessage = 'The video format is not supported.'
+            break
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = 'The video source is not supported.'
+            break
+        }
+      }
+      
+      setError(errorMessage)
+      setIsLoading(false)
+    }
+
+    video.addEventListener('error', handleVideoError)
+    return () => video.removeEventListener('error', handleVideoError)
+  }, [])
 
   const togglePlay = useCallback(() => {
     if (videoRef.current) {
@@ -96,8 +176,8 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId, qu
         videoRef.current.pause()
       } else {
         videoRef.current.play().catch((e) => {
-          setError("Unable to play video. Please try again later.")
           console.error("Error playing video:", e)
+          setError("Unable to play video. Please try again later.")
         })
       }
       setIsPlaying(!isPlaying)
@@ -267,7 +347,7 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId, qu
       <div className="relative bg-black aspect-video flex items-center justify-center">
         <div className="text-white text-center">
           <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
-          <p>Loading video...</p>
+          <p>Loading video{retryCount > 0 ? ` (Attempt ${retryCount}/${maxRetries})` : ''}...</p>
         </div>
       </div>
     )
@@ -279,6 +359,15 @@ export function VideoPlayer({ src, poster, sections = [], animeId, episodeId, qu
         <div className="text-white text-center">
           <AlertCircle className="h-12 w-12 mx-auto mb-4" />
           <p>{error}</p>
+          {retryCount < maxRetries && (
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => setRetryCount(prev => prev + 1)}
+            >
+              Retry
+            </Button>
+          )}
         </div>
       </div>
     )

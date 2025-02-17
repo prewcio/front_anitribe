@@ -78,6 +78,12 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
     setMounted(true)
     const savedLanguage = localStorage.getItem('titleLanguage') as 'romaji' | 'english' | 'native' || 'romaji'
     setTitleLanguage(savedLanguage)
+
+    // Load saved player preference
+    const savedPlayerId = localStorage.getItem('selectedPlayerId')
+    if (savedPlayerId) {
+      loadPlayers(true, parseInt(savedPlayerId))
+    }
   }, [])
 
   useEffect(() => {
@@ -95,14 +101,15 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
     translateDescription()
   }, [episode?.description])
 
-  const loadPlayers = async () => {
+  const loadPlayers = async (autoSelect = false, preferredPlayerId?: number): Promise<void> => {
     setIsLoadingPlayers(true)
     try {
       const slug = getSlugFromTitle(anime?.title?.romaji || '')
       console.log('Fetching players for:', {
         animeTitle: anime?.title?.romaji,
         slug: slug,
-        episodeNumber: episode.number
+        episodeNumber: episode.number,
+        preferredPlayerId
       })
       
       const episodePlayers = await getEpisodePlayers(slug, episode.number)
@@ -113,15 +120,88 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
       })
       
       setPlayers(episodePlayers)
+      
       if (episodePlayers.length > 0) {
-        setSelectedPlayer(episodePlayers[0])
+        // Try to find a working player
+        let workingPlayer = null;
+        
+        // First try preferred player if specified
+        if (preferredPlayerId) {
+          const preferred = episodePlayers.find(p => p.id === preferredPlayerId);
+          if (preferred) {
+            try {
+              const isWorking = await testPlayer(preferred);
+              if (isWorking) {
+                workingPlayer = preferred;
+              }
+            } catch (error) {
+              console.error('Preferred player not working:', error);
+            }
+          }
+        }
+        
+        // If preferred player doesn't work, try others
+        if (!workingPlayer) {
+          for (const player of episodePlayers) {
+            try {
+              const isWorking = await testPlayer(player);
+              if (isWorking) {
+                workingPlayer = player;
+                break;
+              }
+            } catch (error) {
+              console.error('Player not working:', player.id, error);
+              continue;
+            }
+          }
+        }
+        
+        if (workingPlayer) {
+          setSelectedPlayer(workingPlayer);
+          localStorage.setItem('selectedPlayerId', workingPlayer.id.toString());
+        } else {
+          console.error('No working players found');
+          setIsPlayerMenuOpen(true);
+        }
       }
-      setIsPlayerMenuOpen(true)
     } catch (error) {
       console.error('Error loading players:', error)
     } finally {
       setIsLoadingPlayers(false)
     }
+    return;
+  }
+
+  const testPlayer = async (player: DocchiPlayer): Promise<boolean> => {
+    try {
+      console.log('Testing player:', player.id, player.player_hosting);
+      
+      // For pixeldrain URLs
+      if (player.player.includes('pixeldrain.com/api/file/')) {
+        // Pixeldrain URLs are direct, so they should work if the URL is valid
+        return true;
+      }
+      
+      // For other URLs, try to fetch them
+      try {
+        const response = await fetch(player.player, {
+          method: 'HEAD',
+          mode: 'no-cors' // This allows us to at least try to reach the URL
+        });
+        return true; // If we reach this point, the request didn't throw an error
+      } catch {
+        return false;
+      }
+    } catch (error) {
+      console.error('Error testing player:', player.id, error);
+      return false;
+    }
+  }
+
+  const handlePlayerSelect = (player: DocchiPlayer) => {
+    setSelectedPlayer(player)
+    localStorage.setItem('selectedPlayerId', player.id.toString())
+    setIsPlayerMenuOpen(false)
   }
 
   if (!anime) {
@@ -158,7 +238,7 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
                 <SheetTrigger asChild>
                   <Button 
                     variant="outline" 
-                    onClick={loadPlayers}
+                    onClick={() => loadPlayers()}
                     disabled={isLoadingPlayers}
                   >
                     {isLoadingPlayers ? (
@@ -179,7 +259,7 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
                     )}
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right">
+                <SheetContent>
                   <SheetHeader>
                     <SheetTitle>Dostępne playery</SheetTitle>
                   </SheetHeader>
@@ -190,10 +270,7 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
                           key={player.id}
                           variant={selectedPlayer?.id === player.id ? "default" : "outline"}
                           className="w-full justify-start"
-                          onClick={() => {
-                            setSelectedPlayer(player)
-                            setIsPlayerMenuOpen(false)
-                          }}
+                          onClick={() => handlePlayerSelect(player)}
                         >
                           <div className="flex flex-col items-start">
                             <span className="font-medium">
@@ -235,7 +312,7 @@ export function WatchPageClient({ anime, episode, comments, currentTab }: WatchP
             <div className="aspect-video bg-accent/10 rounded-lg flex items-center justify-center">
               <Button 
                 variant="outline" 
-                onClick={loadPlayers}
+                onClick={() => loadPlayers(true)}
                 disabled={isLoadingPlayers}
                 className="bg-background/80"
               >
